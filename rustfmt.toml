@@ -1,0 +1,26 @@
+# General
+edition = "Edition2018"
+
+# Comments/Strings
+format_strings = true
+max_width = 120
+wrap_comments = true
+comment_width = 80
+
+# Indentation/line-return
+hard_tabs = true
+tab_spaces = 2
+newline_style = "Unix"
+
+# Blocks
+combine_control_expr = false
+force_multiline_blocks = true
+struct_lit_single_line = false
+match_block_trailing_comma = true
+
+# Ordering
+reorder_impl_items = true
+
+# Alerts
+report_todo = "Always"
+report_fixme = "Always"

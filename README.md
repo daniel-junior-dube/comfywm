@@ -1,5 +1,7 @@
 # Comfy
 
+TODO: Add logo
+
 Comfy is a Wayland compositor written in the Rust programming language and inspired by i3wm, bspwm and XMonad. It's main goal is ease of use, extensibility and a sane codebase.
 
 ## TODO: Getting Started
@@ -91,7 +93,7 @@ We use [SemVer](http://semver.org/) for versioning.
 ## TODO: Authors
 
 * **Daniel-Junior Dubé** - *Initial work* - [Github](https://github.com/daniel-junior-dube), [Portfolio](https://daniel-junior-dube.github.io)
-* **Félix Chabot** - *Initial work* - [Github](https://github.com/daniel-junior-dube)
+* **Félix Chabot** - *Initial work*
 
 See also the list of [contributors](CONTRIBUTORS.md) who participated in this project.
 
