@@ -1,0 +1,9 @@
+[package]
+name = "comfy"
+version = "0.1.0"
+authors = ["dubd2206 <daniel-junior.dube@usherbrooke.ca>", "chaf2717 <felix.chabot@usherbrooke.ca>"]
+edition = "2018"
+
+[dependencies]
+# Using nightly since
+rustfmt-nightly = "0.99.4"
