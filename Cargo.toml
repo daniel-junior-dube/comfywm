@@ -1,9 +1,18 @@
 [package]
-name = "comfy"
+name = "comfy window manager"
+description = "..."
 version = "0.1.0"
+documentation = "..."
+homepage = "..."
+repository = "..."
 authors = ["dubd2206 <daniel-junior.dube@usherbrooke.ca>", "chaf2717 <felix.chabot@usherbrooke.ca>"]
 edition = "2018"
+keywords = ["window managers", "desktop", "wm", "linux", "interface"]
+categories = ["os"]
+readme = "README.md"
+license = "..."
+license-file = "..."
 
 [dependencies]
-# Using nightly since
+# Using nightly since the stable version is temporarily unavailable
 rustfmt-nightly = "0.99.4"
