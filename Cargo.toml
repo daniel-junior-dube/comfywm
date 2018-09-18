@@ -1,5 +1,5 @@
 [package]
-name = "comfy window manager"
+name = "comfywm"
 description = "..."
 version = "0.1.0"
 documentation = "..."
@@ -10,9 +10,9 @@ edition = "2018"
 keywords = ["window managers", "desktop", "wm", "linux", "interface"]
 categories = ["os"]
 readme = "README.md"
-license = "..."
-license-file = "..."
+license-file = "LICENSE"
 
 [dependencies]
 # Using nightly since the stable version is temporarily unavailable
 rustfmt-nightly = "0.99.4"
+wlroots = { path = "./lib/wlroots-rs" }
