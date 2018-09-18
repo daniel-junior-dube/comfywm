@@ -1,7 +1,7 @@
 <h1 align="center">Comfy</h1>
-<p align="center">
-	<img width="256px" src="./LOGO.svg" alt="Comfy Logo">
-</p>
+<div align="center">
+	<img width="256px" src="./LOGO.png" alt="Comfy Logo">
+</div>
 
 ## Introduction
 
