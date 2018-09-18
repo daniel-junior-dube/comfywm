@@ -1,16 +1,17 @@
 [package]
 name = "comfywm"
 description = "..."
+edition = "2018"
 version = "0.1.0"
 documentation = "..."
 homepage = "..."
 repository = "..."
 authors = ["dubd2206 <daniel-junior.dube@usherbrooke.ca>", "chaf2717 <felix.chabot@usherbrooke.ca>"]
-edition = "2018"
-keywords = ["window managers", "desktop", "wm", "linux", "interface"]
-categories = ["os"]
+build = "build.rs"
 readme = "README.md"
 license-file = "LICENSE"
+keywords = ["window managers", "desktop", "wm", "linux", "interface"]
+categories = ["os"]
 
 [dependencies]
 # Using nightly since the stable version is temporarily unavailable
