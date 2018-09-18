@@ -1,9 +1,8 @@
-<h1 align="center">Comfy</h1>
 <div align="center">
 	<img width="256px" src="./LOGO.png" alt="Comfy Logo">
 </div>
 
-## Introduction
+## Comfy
 
 Comfy is a Wayland compositor written in the Rust programming language and inspired by i3wm, bspwm and XMonad. It's main goal is ease of use, extensibility and a sane codebase.
 
