@@ -16,4 +16,5 @@ categories = ["os"]
 [dependencies]
 # Using nightly since the stable version is temporarily unavailable
 rustfmt-nightly = "0.99.4"
+toml = "0.4.6"
 wlroots = { path = "./lib/wlroots-rs" }

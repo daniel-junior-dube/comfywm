@@ -17,6 +17,9 @@ use wlroots::{
 
 use std::env;
 
+mod config;
+use self::config::parser;
+
 struct KeyboardHandler;
 impl WLRKeyboardHandler for KeyboardHandler {
 	fn on_key(&mut self, _: WLRCompositorHandle, keyboard: WLRKeyboardHandle, key_event: &WLRKeyEvent) {
@@ -44,7 +47,7 @@ impl WLRInputManagerHandler for InputManager {
 
 fn main() {
 	let args: Vec<String> = env::args().collect();
-
+	parser::load_config();
 	wlr_init_logging(WLR_DEBUG, None);
 	WLRCompositorBuilder::new()
 		.input_manager(Box::new(InputManager))

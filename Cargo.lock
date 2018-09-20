@@ -170,6 +170,7 @@ name = "comfywm"
 version = "0.1.0"
 dependencies = [
  "rustfmt-nightly 0.99.4 (registry+https://github.com/rust-lang/crates.io-index)",
+ "toml 0.4.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "wlroots 0.0.0",
 ]
 
