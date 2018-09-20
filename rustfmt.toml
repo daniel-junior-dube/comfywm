@@ -17,6 +17,7 @@ combine_control_expr = false
 force_multiline_blocks = true
 struct_lit_single_line = false
 match_block_trailing_comma = true
+imports_layout = "Vertical"
 
 # Ordering
 reorder_impl_items = true

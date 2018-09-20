@@ -12,6 +12,7 @@ fn main() {
 		.arg("submodule")
 		.arg("update")
 		.arg("--init")
+		.arg("--recursive")
 		.current_dir(&current_directory)
 		.status()
 		.unwrap();
