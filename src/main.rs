@@ -22,8 +22,10 @@ use wlroots::utils::{init_logging as wlr_init_logging, WLR_DEBUG};
 
 mod compositor;
 mod input;
+mod config;
 
 use compositor::generate_default_compositor;
+use self::config::parser;
 
 /*
 .##.....##....###....####.##....##
@@ -36,6 +38,7 @@ use compositor::generate_default_compositor;
 */
 
 fn main() {
+	parser::load_config();
 	wlr_init_logging(WLR_DEBUG, None);
 	let compositor = generate_default_compositor();
 	compositor.run()

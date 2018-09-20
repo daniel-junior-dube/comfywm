@@ -21,6 +21,6 @@ name = "comfywm"
 path = "src/comfy/main.rs"
 
 [dependencies]
-# Using nightly since the stable version is temporarily unavailable
+toml = "0.4.6"
 wlroots = { path = "./lib/wlroots-rs" }
 libc = "0.2.43"
