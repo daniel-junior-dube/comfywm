@@ -1,3 +1,1 @@
-[submodule "lib/wlroots-rs"]
-	path = lib/wlroots-rs
-	url = https://github.com/swaywm/wlroots-rs.git
+
