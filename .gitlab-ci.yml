@@ -1,0 +1,10 @@
+# Language image to use
+image: "rust:latest"
+
+# Use cargo to test the project
+test:cargo:
+  tags:
+    - test
+  script:
+    - rustc --version && cargo --version
+    - cargo test --verbose --jobs 1
