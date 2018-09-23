@@ -17,3 +17,4 @@ categories = ["os"]
 # Using nightly since the stable version is temporarily unavailable
 rustfmt-nightly = "0.99.4"
 wlroots = { path = "./lib/wlroots-rs" }
+libc = "0.2.43"
