@@ -1,2 +1,4 @@
 /target
 **/*.rs.bk
+/doc/*
+!/doc/Comfy\ Window\ Manager.tex
