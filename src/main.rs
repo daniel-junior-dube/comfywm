@@ -55,6 +55,10 @@ use wlroots::{
 	XdgV6ShellState::TopLevel as WLRTopLevel,
 	XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle,
 };
+use wlroots::wlroots_sys::wlr_key_state::WLR_KEY_PRESSED;
+
+use std::thread;
+use std::process::Command;
 
 /*
 ..####...######...####...######..######.
@@ -266,6 +270,13 @@ impl WLRKeyboardHandler for KeyboardHandler {
 			for key in key_event.pressed_keys() {
 				if key == keysyms::KEY_Escape {
 					wlroots::terminate();
+				} else if key_event.key_state() == WLR_KEY_PRESSED {
+					if key == keysyms::KEY_F1 {
+						thread::spawn(move || {
+							Command::new("gnome-terminal").output().unwrap();
+						});
+						return
+					}
 				}
 			};
 			let state: &mut State = compositor.into();
