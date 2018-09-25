@@ -13,5 +13,4 @@ keywords = ["window managers", "desktop", "wm", "linux", "interface"]
 categories = ["os"]
 
 [dependencies]
-# Using nightly since the stable version is temporarily unavailable
 wlroots = { path = "./lib/wlroots-rs" }
