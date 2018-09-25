@@ -17,9 +17,7 @@ MMMMMMMMMMM MMMMMMMMMMM MMMMMMMMMMMMMM MMMMMMMMMMMM MMMMMMMMMM MMMMMMMMMMMMMM MM
 
 #[macro_use]
 extern crate wlroots;
-
-#[allow(unused_imports)]
-use libc;
+extern crate libc;
 
 use wlroots::key_events::KeyEvent as WLRKeyEvent;
 use wlroots::utils::{
