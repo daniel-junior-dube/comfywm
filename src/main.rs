@@ -1,17 +1,13 @@
 #[macro_use]
 extern crate wlroots;
+extern crate libc;
 
 use wlroots::key_events::KeyEvent as WLRKeyEvent;
-use wlroots::utils::{
-	init_logging as wlr_init_logging,
-	WLR_DEBUG,
-};
+use wlroots::utils::{init_logging as wlr_init_logging, WLR_DEBUG};
 use wlroots::xkbcommon::xkb::keysyms::KEY_Escape;
 use wlroots::{
-	CompositorBuilder as WLRCompositorBuilder,
-	CompositorHandle as WLRCompositorHandle,
-	InputManagerHandler as WLRInputManagerHandler,
-	KeyboardHandle as WLRKeyboardHandle,
+	CompositorBuilder as WLRCompositorBuilder, CompositorHandle as WLRCompositorHandle,
+	InputManagerHandler as WLRInputManagerHandler, KeyboardHandle as WLRKeyboardHandle,
 	KeyboardHandler as WLRKeyboardHandler,
 };
 
