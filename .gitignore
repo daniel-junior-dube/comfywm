@@ -1,2 +1,5 @@
 /target
 **/*.rs.bk
+/doc/*
+!/doc/*.tex
+!/doc/images/
