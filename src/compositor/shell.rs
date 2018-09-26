@@ -4,8 +4,8 @@ use wlroots::{
 	XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle,
 };
 
-use state::State;
-use surface::Surface;
+use compositor::surface::SurfaceHandler;
+use compositor::State;
 
 /*
 ..####...##..##..######..##......##.....
@@ -29,8 +29,8 @@ impl WLRXdgV6ShellHandler for XdgV6ShellHandler {
 	}
 }
 
-pub struct XdgV6ShellManager;
-impl WLRXdgV6ShellManagerHandler for XdgV6ShellManager {
+pub struct XdgV6ShellManagerHandler;
+impl WLRXdgV6ShellManagerHandler for XdgV6ShellManagerHandler {
 	fn new_surface(
 		&mut self,
 		compositor: WLRCompositorHandle,
@@ -42,13 +42,13 @@ impl WLRXdgV6ShellManagerHandler for XdgV6ShellManager {
 				shell.ping();
 				let state: &mut State = compositor.into();
 				state.shells.push(shell.weak_reference());
-				@layout = {&state.layout};
+				@layout = {&state.output_layout_handle};
 				for (mut output, _) in layout.outputs() => {
 						@output = {output};
 						output.schedule_frame()
 				}
 				()
 			);
-		(Some(Box::new(XdgV6ShellHandler)), Some(Box::new(Surface)))
+		(Some(Box::new(XdgV6ShellHandler)), Some(Box::new(SurfaceHandler)))
 	}
 }
