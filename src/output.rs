@@ -18,9 +18,11 @@ use state::State;
 ................................................
 */
 
+// ? Handles events on the output layout (how displays are organized)
 pub struct OutputLayout;
 impl WLROutputLayoutHandler for OutputLayout {}
 
+// ? Handles the actions and events of a specific output
 pub struct Output;
 impl WLROutputHandler for Output {
 	fn on_frame(&mut self, compositor: WLRCompositorHandle, output: WLROutputHandle) {
@@ -38,6 +40,7 @@ impl WLROutputHandler for Output {
 	}
 }
 
+// ? Handles addition and removal of outputs
 pub struct OutputManager;
 impl WLROutputManagerHandler for OutputManager {
 	fn output_added<'output>(
@@ -76,26 +79,23 @@ fn render_shells(state: &mut State, renderer: &mut Renderer) {
 		dehandle!(
 			@shell = {shell};
 			@surface = {shell.surface()};
-			state.current_rotation = state.current_rotation + 0.01;
 			@layout = {&state.layout};
 			let (width, height) = surface.current_state().size();
-			let (render_width, render_height) =
-				(
-					width * renderer.output.scale() as i32,
-					height * renderer.output.scale() as i32
-				);
+			let (render_width, render_height) = (
+				width * renderer.output.scale() as i32,
+				height * renderer.output.scale() as i32
+			);
 			let (lx, ly) = (0.0, 0.0);
 			let render_box = Area::new(
 				Origin::new(lx as i32, ly as i32),
 				Size::new(render_width,render_height)
 			);
-
 			if layout.intersects(renderer.output, render_box) {
 				let transform = renderer.output.get_transform().invert();
 				let matrix = wlr_project_box(
 					render_box,
 					transform,
-					state.current_rotation,
+					0.0,
 					renderer.output.transform_matrix()
 				);
 				if let Some(texture) = surface.texture().as_ref() {

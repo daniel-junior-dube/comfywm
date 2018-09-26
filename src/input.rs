@@ -112,7 +112,7 @@ impl WLRPointerHandler for Pointer {
 								&mut keyboard.keycodes(),
 								&mut keyboard.get_modifier_masks()
 							);
-						});
+						}).unwrap();
 					}
 				).unwrap();
 			};

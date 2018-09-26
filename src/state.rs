@@ -20,7 +20,6 @@ pub struct State {
 	pub layout: WLROutputLayoutHandle,
 	pub shells: Vec<WLRXdgV6ShellSurfaceHandle>,
 	pub seat_handle: Option<WLRSeatHandle>,
-	pub current_rotation: f32,
 }
 
 impl State {
@@ -32,7 +31,6 @@ impl State {
 			layout: layout,
 			shells: vec![],
 			seat_handle: None,
-			current_rotation: 0.0,
 		}
 	}
 }

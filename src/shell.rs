@@ -1,7 +1,7 @@
 use wlroots::{
 	CompositorHandle as WLRCompositorHandle, SurfaceHandler as WLRSurfaceHandler,
 	XdgV6ShellHandler as WLRXdgV6ShellHandler, XdgV6ShellManagerHandler as WLRXdgV6ShellManagerHandler,
-	XdgV6ShellState::TopLevel as WLRTopLevel, XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle,
+	XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle,
 };
 
 use state::State;
