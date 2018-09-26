@@ -19,11 +19,8 @@ extern crate wlroots;
 extern crate libc;
 
 use wlroots::utils::{init_logging as wlr_init_logging, WLR_DEBUG};
-use wlroots::{
-	Capability, CompositorBuilder as WLRCompositorBuilder, OutputManagerHandler as WLROutputManagerHandler, Renderer,
-	Seat, SeatHandle as WLRSeatHandle, SeatHandler as WLRSeatHandler,
-};
 
+mod compositor;
 mod input;
 mod output;
 mod seat;
@@ -31,11 +28,7 @@ mod shell;
 mod state;
 mod surface;
 
-use input::InputManager;
-use output::OutputManager;
-use seat::SeatHandler;
-use shell::XdgV6ShellManager;
-use state::State;
+use compositor::generate_default_compositor;
 
 /*
 .##.....##....###....####.##....##
@@ -49,24 +42,6 @@ use state::State;
 
 fn main() {
 	wlr_init_logging(WLR_DEBUG, None);
-
-	let mut compositor = WLRCompositorBuilder::new()
-		.gles2(true)
-		.input_manager(Box::new(InputManager))
-		.output_manager(Box::new(OutputManager))
-		.xdg_shell_v6_manager(Box::new(XdgV6ShellManager))
-		.data_device(true)
-		.build_auto(State::new());
-
-	{
-		let seat_handle = Seat::create(&mut compositor, "seat0".into(), Box::new(SeatHandler));
-		seat_handle
-			.run(|seat| {
-				seat.set_capabilities(Capability::all());
-			}).unwrap();
-		let state: &mut State = (&mut compositor).into();
-		state.seat_handle = Some(seat_handle);
-	}
-
+	let compositor = generate_default_compositor();
 	compositor.run()
 }

@@ -2,9 +2,10 @@
 extern crate wlroots;
 extern crate libc;
 
-mod input;
-mod output;
-mod seat;
-mod shell;
-mod state;
-mod surface;
+pub mod compositor;
+pub mod input;
+pub mod output;
+pub mod seat;
+pub mod shell;
+pub mod state;
+pub mod surface;
