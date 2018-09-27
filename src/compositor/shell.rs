@@ -5,7 +5,7 @@ use wlroots::{
 };
 
 use compositor::surface::SurfaceHandler;
-use compositor::State;
+use compositor::ComfyKernel;
 
 /*
 ..####...##..##..######..##......##.....
@@ -20,10 +20,10 @@ pub struct XdgV6ShellHandler;
 impl WLRXdgV6ShellHandler for XdgV6ShellHandler {
 	fn destroyed(&mut self, compositor: WLRCompositorHandle, shell: WLRXdgV6ShellSurfaceHandle) {
 		with_handles!([(compositor: {compositor})] => {
-			let state: &mut State = compositor.into();
+			let comfy_kernel: &mut ComfyKernel = compositor.into();
 			let weak = shell;
-			if let Some(index) = state.shells.iter().position(|s| *s == weak) {
-				state.shells.remove(index);
+			if let Some(index) = comfy_kernel.shells.iter().position(|s| *s == weak) {
+				comfy_kernel.shells.remove(index);
 			}
 		}).unwrap();
 	}
@@ -40,9 +40,9 @@ impl WLRXdgV6ShellManagerHandler for XdgV6ShellManagerHandler {
 				@compositor = {compositor};
 				@shell = {shell};
 				shell.ping();
-				let state: &mut State = compositor.into();
-				state.shells.push(shell.weak_reference());
-				@layout = {&state.output_layout_handle};
+				let comfy_kernel: &mut ComfyKernel = compositor.into();
+				comfy_kernel.shells.push(shell.weak_reference());
+				@layout = {&comfy_kernel.output_layout_handle};
 				for (mut output, _) in layout.outputs() => {
 						@output = {output};
 						output.schedule_frame()

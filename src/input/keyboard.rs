@@ -9,7 +9,7 @@ use wlroots::{
 use std::process::Command;
 use std::thread;
 
-use compositor::State;
+use compositor::ComfyKernel;
 
 /*
 .##..##..######..##..##..#####....####....####...#####...#####..
@@ -37,8 +37,8 @@ impl WLRKeyboardHandler for KeyboardHandler {
 					}
 				}
 			};
-			let state: &mut State = compositor.into();
-			let seat_handle = state.seat_handle.clone().unwrap();
+			let comfy_kernel: &mut ComfyKernel = compositor.into();
+			let seat_handle = comfy_kernel.seat_handle.clone().unwrap();
 			@seat = {seat_handle};
 			println!("Notifying seat of keypress: time_msec: '{:?}' keycode: '{}' key_state: '{}'", key_event.time_msec(), key_event.keycode(), key_event.key_state() as u32);
 			seat.keyboard_notify_key(

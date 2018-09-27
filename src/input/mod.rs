@@ -4,7 +4,7 @@ use wlroots::{
 	PointerHandler as WLRPointerHandler,
 };
 
-use compositor::State;
+use compositor::ComfyKernel;
 use input::cursor::PointerHandler;
 use input::keyboard::KeyboardHandler;
 
@@ -35,9 +35,9 @@ impl WLRInputManagerHandler for InputManagerHandler {
 		dehandle!(
 			@compositor = {compositor};
 			@keyboard = {keyboard};
-			let state: &mut State = compositor.into();
-			state.keyboard_handle = Some(keyboard.weak_reference());
-			@seat = {state.seat_handle.as_ref().unwrap()};
+			let comfy_kernel: &mut ComfyKernel = compositor.into();
+			comfy_kernel.keyboard_handle = Some(keyboard.weak_reference());
+			@seat = {comfy_kernel.seat_handle.as_ref().unwrap()};
 			seat.set_keyboard(keyboard.input_device())
 		);
 		Some(Box::new(KeyboardHandler))

@@ -7,7 +7,7 @@ use wlroots::{
 	XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle,
 };
 
-use compositor::State;
+use compositor::ComfyKernel;
 
 /*
 ..####...##..##..######..#####...##..##..######.
@@ -27,19 +27,24 @@ pub struct OutputHandler;
 impl OutputHandler {
 	/// Render the shells in the current compositor state on the given output
 	/// renderer.
-	fn render_shells(&mut self, state: &mut State, renderer: &mut Renderer) {
-		let shells: Vec<WLRXdgV6ShellSurfaceHandle> = state.shells.clone();
+	fn render_shells(&mut self, comfy_kernel: &mut ComfyKernel, renderer: &mut Renderer) {
+		let shells: Vec<WLRXdgV6ShellSurfaceHandle> = comfy_kernel.shells.clone();
 		for shell in shells {
-			self.render_shell(shell, state, renderer);
+			self.render_shell(shell, comfy_kernel, renderer);
 		}
 	}
 
 	/// Render a given shell on the given output renderer.
-	fn render_shell(&mut self, shell: WLRXdgV6ShellSurfaceHandle, state: &mut State, renderer: &mut Renderer) {
+	fn render_shell(
+		&mut self,
+		shell: WLRXdgV6ShellSurfaceHandle,
+		comfy_kernel: &mut ComfyKernel,
+		renderer: &mut Renderer,
+	) {
 		dehandle!(
 			@shell = {shell};
 			@surface = {shell.surface()};
-			@layout = {&state.output_layout_handle};
+			@layout = {&comfy_kernel.output_layout_handle};
 			let (width, height) = surface.current_state().size();
 			let (render_width, render_height) = (
 				width * renderer.output.scale() as i32,
@@ -72,13 +77,13 @@ impl WLROutputHandler for OutputHandler {
 		dehandle!(
 			@compositor = {compositor};
 			@output = {output};
-			let state: &mut State = compositor.data.downcast_mut().unwrap();
+			let comfy_kernel: &mut ComfyKernel = compositor.data.downcast_mut().unwrap();
 			let renderer = compositor.renderer
 				.as_mut()
 				.expect("Compositor was not loaded with a renderer");
 			let mut render_context = renderer.render(output, None);
 			render_context.clear([135.0/255.0, 7.0/255.0, 52.0/255.0, 1.0]);
-			self.render_shells(state, &mut render_context)
+			self.render_shells(comfy_kernel, &mut render_context)
 		);
 	}
 }
@@ -95,15 +100,15 @@ impl WLROutputManagerHandler for OutputManagerHandler {
 		dehandle!(
 			@compositor = {compositor_handle};
 			@output = {&mut result.output};
-			let state: &mut State = compositor.data.downcast_mut().unwrap();
-			let xcursor_manager = &mut state.xcursor_manager;
+			let comfy_kernel: &mut ComfyKernel = compositor.data.downcast_mut().unwrap();
+			let xcursor_manager = &mut comfy_kernel.xcursor_manager;
 			// TODO use output config if present instead of auto
-			let output_layout_handle = &mut state.output_layout_handle;
-			let cursor_handle = &mut state.cursor_handle;
-			@layout = {output_layout_handle};
+			let output_layout_handle = &mut comfy_kernel.output_layout_handle;
+			let cursor_handle = &mut comfy_kernel.cursor_handle;
+			@output_layout = {output_layout_handle};
 			@cursor = {cursor_handle};
-			layout.add_auto(output);
-			cursor.attach_output_layout(layout);
+			output_layout.add_auto(output);
+			cursor.attach_output_layout(output_layout);
 			xcursor_manager.load(output.scale());
 			xcursor_manager.set_cursor_image("left_ptr".to_string(), cursor);
 			let (x, y) = cursor.coords();

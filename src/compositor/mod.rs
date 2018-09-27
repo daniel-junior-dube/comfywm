@@ -1,8 +1,8 @@
 use wlroots::{
 	Capability, Compositor as WLRCompositor, CompositorBuilder as WLRCompositorBuilder, Cursor as WLRCursor,
 	CursorHandle as WLRCursorHandle, KeyboardHandle as WLRKeyboardHandle, OutputLayout as WLROutputLayout,
-	OutputLayoutHandle as WLROutputLayoutHandle, Seat, SeatHandle as WLRSeatHandle, XCursorManager as WLRXCursorManager,
-	XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle,
+	OutputLayoutHandle as WLROutputLayoutHandle, Seat as WLRSeat, SeatHandle as WLRSeatHandle,
+	XCursorManager as WLRXCursorManager, XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle,
 };
 
 pub mod output;
@@ -44,17 +44,17 @@ pub fn generate_default_compositor() -> WLRCompositor {
 		.output_manager(Box::new(OutputManagerHandler))
 		.xdg_shell_v6_manager(Box::new(XdgV6ShellManagerHandler))
 		.data_device(true)
-		.build_auto(State::new(layout, xcursor_manager, cursor));
+		.build_auto(ComfyKernel::new(layout, xcursor_manager, cursor));
 
 	// ? WIP: Initialize and add the seat structures to the state
 	{
-		let seat_handle = Seat::create(&mut compositor, "seat0".into(), Box::new(SeatHandler));
+		let seat_handle = WLRSeat::create(&mut compositor, "seat0".into(), Box::new(SeatHandler));
 		seat_handle
 			.run(|seat| {
 				seat.set_capabilities(Capability::all());
 			}).unwrap();
-		let state: &mut State = (&mut compositor).into();
-		state.seat_handle = Some(seat_handle);
+		let comfy_kernel: &mut ComfyKernel = (&mut compositor).into();
+		comfy_kernel.seat_handle = Some(seat_handle);
 	}
 
 	compositor
@@ -69,7 +69,7 @@ pub fn generate_default_compositor() -> WLRCompositor {
 ........................................
 */
 
-pub struct State {
+pub struct ComfyKernel {
 	pub xcursor_manager: WLRXCursorManager,
 	pub cursor_handle: WLRCursorHandle,
 	pub keyboard_handle: Option<WLRKeyboardHandle>,
@@ -78,13 +78,13 @@ pub struct State {
 	pub seat_handle: Option<WLRSeatHandle>,
 }
 
-impl State {
+impl ComfyKernel {
 	pub fn new(
 		output_layout_handle: WLROutputLayoutHandle,
 		xcursor_manager: WLRXCursorManager,
 		cursor_handle: WLRCursorHandle,
 	) -> Self {
-		State {
+		ComfyKernel {
 			xcursor_manager,
 			cursor_handle,
 			keyboard_handle: None,
@@ -95,4 +95,4 @@ impl State {
 	}
 }
 
-compositor_data!(State);
+compositor_data!(ComfyKernel);

@@ -4,7 +4,7 @@ use wlroots::{
 	PointerHandler as WLRPointerHandler, XdgV6ShellState as WLRXdgV6ShellState,
 };
 
-use compositor::State;
+use compositor::ComfyKernel;
 
 /*
 ..####...##..##..#####....####....####...#####..
@@ -23,9 +23,9 @@ impl WLRPointerHandler for PointerHandler {
 	fn on_motion_absolute(&mut self, compositor: WLRCompositorHandle, _: WLRPointerHandle, event: &AbsoluteMotionEvent) {
 		dehandle!(
 			@compositor = {compositor};
-			let state: &mut State = compositor.into();
+			let comfy_kernel: &mut ComfyKernel = compositor.into();
 			let (x, y) = event.pos();
-			@cursor = {&state.cursor_handle};
+			@cursor = {&comfy_kernel.cursor_handle};
 			cursor.warp_absolute(event.device(), x, y)
       /*
         TODO: If 'select on hover mode', set window 'activated' on mouse intersection
@@ -36,9 +36,9 @@ impl WLRPointerHandler for PointerHandler {
 	fn on_motion(&mut self, compositor: WLRCompositorHandle, _: WLRPointerHandle, event: &MotionEvent) {
 		dehandle!(
 			@compositor = {compositor};
-			let state: &mut State = compositor.into();
+			let comfy_kernel: &mut ComfyKernel = compositor.into();
 			let (delta_x, delta_y) = event.delta();
-			@cursor = {&state.cursor_handle};
+			@cursor = {&comfy_kernel.cursor_handle};
 			cursor.move_to(event.device(), delta_x, delta_y)
 		);
 	}
@@ -46,13 +46,13 @@ impl WLRPointerHandler for PointerHandler {
 	fn on_button(&mut self, compositor: WLRCompositorHandle, _: WLRPointerHandle, _: &ButtonEvent) {
 		dehandle!(
 			@compositor = {compositor};
-			let state: &mut State = compositor.into();
-			let seat = state.seat_handle.clone().unwrap();
-			let keyboard = state.keyboard_handle.clone().unwrap();
+			let comfy_kernel: &mut ComfyKernel = compositor.into();
+			let seat = comfy_kernel.seat_handle.clone().unwrap();
+			let keyboard = comfy_kernel.keyboard_handle.clone().unwrap();
 			@seat = {seat};
 			@keyboard = {keyboard};
-			if state.shells.len() > 0 {
-				state.shells[0].run(
+			if comfy_kernel.shells.len() > 0 {
+				comfy_kernel.shells[0].run(
 					|shell| {
 						let surface = shell.surface();
 						surface.run(|surface| {
