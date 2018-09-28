@@ -1,49 +1,47 @@
+/*
+
+MM'""""'YMM MMP"""""YMM M"""""`'"""`YM MM""""""""`M M""MMMM""M M""MMM""MMM""M M"""""`'"""`YM
+M' .mmm. `M M' .mmm. `M M  mm.  mm.  M MM  mmmmmmmM M. `MM' .M M  MMM  MMM  M M  mm.  mm.  M
+M  MMMMMooM M  MMMMM  M M  MMM  MMM  M M'      MMMM MM.    .MM M  MMP  MMP  M M  MMM  MMM  M
+M  MMMMMMMM M  MMMMM  M M  MMM  MMM  M MM  MMMMMMMM MMMb  dMMM M  MM'  MM' .M M  MMM  MMM  M
+M. `MMM' .M M. `MMM' .M M  MMM  MMM  M MM  MMMMMMMM MMMM  MMMM M  `' . '' .MM M  MMM  MMM  M
+MM.     .dM MMb     dMM M  MMM  MMM  M MM  MMMMMMMM MMMM  MMMM M    .d  .dMMM M  MMM  MMM  M
+MMMMMMMMMMM MMMMMMMMMMM MMMMMMMMMMMMMM MMMMMMMMMMMM MMMMMMMMMM MMMMMMMMMMMMMM MMMMMMMMMMMMMM
+
+	Authors:
+		- Daniel-Junior Dubé
+		- Félix Chabot
+	Date:
+		September 2018
+*/
 #[macro_use]
 extern crate wlroots;
 extern crate libc;
 
-use wlroots::key_events::KeyEvent as WLRKeyEvent;
 use wlroots::utils::{init_logging as wlr_init_logging, WLR_DEBUG};
-use wlroots::xkbcommon::xkb::keysyms::KEY_Escape;
-use wlroots::{
-	CompositorBuilder as WLRCompositorBuilder, CompositorHandle as WLRCompositorHandle,
-	InputManagerHandler as WLRInputManagerHandler, KeyboardHandle as WLRKeyboardHandle,
-	KeyboardHandler as WLRKeyboardHandler,
-};
 
-use std::env;
+mod compositor;
+mod input;
+mod output;
+mod seat;
+mod shell;
+mod state;
+mod surface;
 
-struct KeyboardHandler;
-impl WLRKeyboardHandler for KeyboardHandler {
-	fn on_key(&mut self, _: WLRCompositorHandle, keyboard: WLRKeyboardHandle, key_event: &WLRKeyEvent) {
-		let keys = key_event.pressed_keys();
-		with_handles!([(keyboard: {keyboard})] => {
-			for key in keys {
-				println!("Key press detected: {}", key);
-				match key {
-					KEY_Escape => {
-						wlroots::terminate();
-					},
-					_ => {}
-				}
-			}
-		}).unwrap();
-	}
-}
+use compositor::generate_default_compositor;
 
-struct InputManager;
-impl WLRInputManagerHandler for InputManager {
-	fn keyboard_added(&mut self, _: WLRCompositorHandle, _: WLRKeyboardHandle) -> Option<Box<WLRKeyboardHandler>> {
-		Some(Box::new(KeyboardHandler))
-	}
-}
+/*
+.##.....##....###....####.##....##
+.###...###...##.##....##..###...##
+.####.####..##...##...##..####..##
+.##.###.##.##.....##..##..##.##.##
+.##.....##.#########..##..##..####
+.##.....##.##.....##..##..##...###
+.##.....##.##.....##.####.##....##
+*/
 
 fn main() {
-	let args: Vec<String> = env::args().collect();
-
 	wlr_init_logging(WLR_DEBUG, None);
-	WLRCompositorBuilder::new()
-		.input_manager(Box::new(InputManager))
-		.build_auto(())
-		.run()
+	let compositor = generate_default_compositor();
+	compositor.run()
 }
