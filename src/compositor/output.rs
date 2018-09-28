@@ -25,7 +25,7 @@ impl WLROutputLayoutHandler for OutputLayoutHandler {}
 // ? Handles the actions and events of a specific output
 pub struct OutputHandler;
 impl OutputHandler {
-	/// Render the shells in the current compositor state on the given output
+	/// Render the shells in the current compositor kernel on the given output
 	/// renderer.
 	fn render_shells(&mut self, comfy_kernel: &mut ComfyKernel, renderer: &mut Renderer) {
 		let shells: Vec<WLRXdgV6ShellSurfaceHandle> = comfy_kernel.shells.clone();
