@@ -12,6 +12,14 @@ license-file = "LICENSE"
 keywords = ["window managers", "desktop", "wm", "linux", "interface"]
 categories = ["os"]
 
+[lib]
+name = "common"
+path = "src/common/lib.rs"
+
+[[bin]]
+name = "comfywm"
+path = "src/comfy/main.rs"
+
 [dependencies]
 # Using nightly since the stable version is temporarily unavailable
 wlroots = { path = "./lib/wlroots-rs" }

@@ -52,7 +52,7 @@ impl WLRPointerHandler for PointerHandler {
 			@seat = {seat};
 			@keyboard = {keyboard};
 			if comfy_kernel.shells.len() > 0 {
-				comfy_kernel.shells[0].run(
+				comfy_kernel.shells[comfy_kernel.shells.len()-1].run(
 					|shell| {
 						let surface = shell.surface();
 						surface.run(|surface| {
