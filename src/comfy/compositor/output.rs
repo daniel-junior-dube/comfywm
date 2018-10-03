@@ -41,6 +41,8 @@ impl OutputHandler {
 		comfy_kernel: &mut ComfyKernel,
 		renderer: &mut Renderer,
 	) {
+		let x = comfy_kernel.x;
+		let y = comfy_kernel.y;
 		dehandle!(
 			@shell = {shell};
 			@surface = {shell.surface()};
@@ -50,9 +52,8 @@ impl OutputHandler {
 				width * renderer.output.scale() as i32,
 				height * renderer.output.scale() as i32
 			);
-			let (lx, ly) = (0.0, 0.0);
 			let render_box = Area::new(
-				Origin::new(lx as i32, ly as i32),
+				Origin::new(x, y),
 				Size::new(render_width,render_height)
 			);
 			if layout.intersects(renderer.output, render_box) {
