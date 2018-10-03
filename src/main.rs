@@ -22,11 +22,6 @@ use wlroots::utils::{init_logging as wlr_init_logging, WLR_DEBUG};
 
 mod compositor;
 mod input;
-mod output;
-mod seat;
-mod shell;
-mod state;
-mod surface;
 
 use compositor::generate_default_compositor;
 
