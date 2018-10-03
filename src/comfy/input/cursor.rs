@@ -27,9 +27,9 @@ impl WLRPointerHandler for PointerHandler {
 			let (x, y) = event.pos();
 			@cursor = {&comfy_kernel.cursor_handle};
 			cursor.warp_absolute(event.device(), x, y)
-      /*
-        TODO: If 'select on hover mode', set window 'activated' on mouse intersection
-      */
+			/*
+				TODO: If 'select on hover mode', set window 'activated' on mouse intersection
+			*/
 		);
 	}
 
