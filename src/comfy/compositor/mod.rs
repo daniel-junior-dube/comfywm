@@ -12,10 +12,12 @@ pub mod commands;
 pub mod output;
 pub mod shell;
 pub mod surface;
+pub mod workspace;
 
 use self::commands::Command;
-use self::output::{OutputLayoutHandler, OutputManagerHandler};
+use self::output::{OutputData, OutputLayoutHandler, OutputManagerHandler};
 use self::shell::XdgV6ShellManagerHandler;
+use self::workspace::Workspace;
 use common::command_type::CommandType;
 use input::cursor::CursorHandler;
 use input::keyboard::XkbKeySet;
@@ -109,6 +111,9 @@ pub struct ComfyKernel {
 	pub cursor_handle: WLRCursorHandle,
 	pub keyboard_handle: Option<WLRKeyboardHandle>,
 	pub output_layout_handle: WLROutputLayoutHandle,
+	pub active_output_name: String,
+	pub output_data_map: HashMap<String, OutputData>,
+	pub workspace_pool: Vec<Workspace>,
 	pub shells: Vec<WLRXdgV6ShellSurfaceHandle>,
 	pub seat_handle: Option<WLRSeatHandle>,
 	pub current_mode: CompositorMode,
@@ -129,6 +134,16 @@ impl ComfyKernel {
 		available_commands.insert(
 			XkbKeySet::from_string("1".to_string()).unwrap(),
 			Command::new_with_args(CommandType::Exec, vec!["weston-terminal".to_string()]),
+		);
+
+		available_commands.insert(
+			XkbKeySet::from_string("2".to_string()).unwrap(),
+			Command::new_with_args(CommandType::Exec, vec!["firefox".to_string()]),
+		);
+
+		available_commands.insert(
+			XkbKeySet::from_string("3".to_string()).unwrap(),
+			Command::new_with_args(CommandType::Exec, vec!["chromium".to_string()]),
 		);
 
 		available_commands.insert(
@@ -161,6 +176,9 @@ impl ComfyKernel {
 			cursor_handle,
 			keyboard_handle: None,
 			output_layout_handle: output_layout_handle,
+			active_output_name: String::from(""),
+			output_data_map: HashMap::<String, OutputData>::new(),
+			workspace_pool: vec![],
 			shells: vec![],
 			seat_handle: None,
 			current_mode: CompositorMode::NormalMode,
@@ -169,6 +187,23 @@ impl ComfyKernel {
 			super_mode_xkb_key: keysyms::KEY_Control_R,
 			available_commands: available_commands,
 		}
+	}
+
+	pub fn add_window_to_active_workspace(&mut self, shell_handle: WLRXdgV6ShellSurfaceHandle) {
+		let active_output_name = self.active_output_name.clone();
+		let output_layout_handle = self.output_layout_handle.clone();
+
+		with_handles!([(layout: {output_layout_handle})] => {
+			if let Some(OutputData {workspace, ..}) = self.output_data_map.get_mut(&active_output_name) {
+				workspace.add_window(shell_handle);
+			}
+
+			for (mut output_handle, _) in layout.outputs() {
+				with_handles!([(output: {output_handle})] => {
+					output.schedule_frame()
+				}).unwrap();
+			}
+		}).unwrap();
 	}
 }
 

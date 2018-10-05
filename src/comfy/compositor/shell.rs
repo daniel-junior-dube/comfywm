@@ -4,6 +4,7 @@ use wlroots::{
 	XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle,
 };
 
+use compositor::output::OutputData;
 use compositor::surface::SurfaceHandler;
 use compositor::ComfyKernel;
 
@@ -33,22 +34,14 @@ pub struct XdgV6ShellManagerHandler;
 impl WLRXdgV6ShellManagerHandler for XdgV6ShellManagerHandler {
 	fn new_surface(
 		&mut self,
-		compositor: WLRCompositorHandle,
-		shell: WLRXdgV6ShellSurfaceHandle,
+		compositor_handle: WLRCompositorHandle,
+		shell_handle: WLRXdgV6ShellSurfaceHandle,
 	) -> (Option<Box<WLRXdgV6ShellHandler>>, Option<Box<WLRSurfaceHandler>>) {
-		dehandle!(
-				@compositor = {compositor};
-				@shell = {shell};
-				shell.ping();
-				let comfy_kernel: &mut ComfyKernel = compositor.into();
-				comfy_kernel.shells.push(shell.weak_reference());
-				@layout = {&comfy_kernel.output_layout_handle};
-				for (mut output, _) in layout.outputs() => {
-						@output = {output};
-						output.schedule_frame()
-				}
-				()
-			);
+		with_handles!([(compositor: {compositor_handle}), (shell: {shell_handle})] => {
+			shell.ping();
+			let comfy_kernel: &mut ComfyKernel = compositor.into();
+			comfy_kernel.add_window_to_active_workspace(shell.weak_reference());
+		}).unwrap();
 		(Some(Box::new(XdgV6ShellHandler)), Some(Box::new(SurfaceHandler)))
 	}
 }
