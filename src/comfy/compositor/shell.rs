@@ -36,10 +36,10 @@ impl WLRXdgV6ShellManagerHandler for XdgV6ShellManagerHandler {
 		compositor_handle: WLRCompositorHandle,
 		shell_handle: WLRXdgV6ShellSurfaceHandle,
 	) -> (Option<Box<WLRXdgV6ShellHandler>>, Option<Box<WLRSurfaceHandler>>) {
-		with_handles!([(compositor: {compositor_handle}), (shell: {shell_handle})] => {
-			shell.ping();
+		shell_handle.run(|shell| shell.ping()).unwrap();
+		compositor_handle.run(|compositor| {
 			let comfy_kernel: &mut ComfyKernel = compositor.into();
-			comfy_kernel.add_window_to_active_workspace(shell.weak_reference());
+			comfy_kernel.add_window_to_active_workspace(shell_handle);
 		}).unwrap();
 		(Some(Box::new(XdgV6ShellHandler)), Some(Box::new(SurfaceHandler)))
 	}
