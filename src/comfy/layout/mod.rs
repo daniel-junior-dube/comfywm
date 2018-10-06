@@ -1,8 +1,17 @@
 use wlroots::{Area, Origin, Size, XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle};
 
 use std::collections::LinkedList;
-use std::slice::IterMut;
-use windows::WindowData;
+
+pub struct WindowData {
+	pub shell_handle: WLRXdgV6ShellSurfaceHandle,
+	pub area: Area,
+}
+
+impl WindowData {
+	pub fn new(shell_handle: WLRXdgV6ShellSurfaceHandle, area: Area) -> Self {
+		WindowData { shell_handle, area }
+	}
+}
 
 /*
 ..####....####...##..##..######...####...######..##..##..######..#####..
@@ -19,42 +28,29 @@ use windows::WindowData;
 ................................
 */
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub enum ContainerAxis {
 	Vertical,
 	Horizontal,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct ContainerData {
 	pub children_indices: Vec<usize>,
-	pub area: Area,
 	pub axis: ContainerAxis,
 }
 
 impl ContainerData {
-	fn new(children_indices: Vec<usize>, axis: ContainerAxis, area: Area) -> Self {
-		ContainerData {
-			children_indices,
-			axis,
-			area,
-		}
+	fn new(children_indices: Vec<usize>, axis: ContainerAxis) -> Self {
+		ContainerData { children_indices, axis }
 	}
 
-	fn new_empty(area: Area) -> Self {
-		ContainerData {
-			children_indices: vec![],
-			axis: ContainerAxis::Horizontal,
-			area,
-		}
+	fn new_empty() -> Self {
+		ContainerData::new(vec![], ContainerAxis::Horizontal)
 	}
 
-	fn new_with_children(children_indices: Vec<usize>, area: Area) -> Self {
-		ContainerData {
-			children_indices,
-			axis: ContainerAxis::Horizontal,
-			area,
-		}
+	fn new_with_children(children_indices: Vec<usize>) -> Self {
+		ContainerData::new(children_indices, ContainerAxis::Horizontal)
 	}
 
 	fn add_child(&mut self, child_index: usize) {
@@ -75,44 +71,46 @@ impl ContainerData {
 ................................................................................
 */
 
+#[derive(PartialEq, Eq)]
 pub enum LayoutNodeType {
 	Container(ContainerData),
-	Window(WindowData),
+	Window(WLRXdgV6ShellSurfaceHandle),
 }
 
 pub struct LayoutNode {
 	node_type: LayoutNodeType,
 	parent_node_index: usize,
 	weight: f32,
-	// TODO: Add Area to each node instead of in window data and container data
-	//area: Area,
+	area: Area,
 }
 
 impl LayoutNode {
 	pub fn new_root_node(area: Area) -> Self {
-		let container_data = ContainerData::new_empty(area);
-		LayoutNode::new_container_node(container_data, 0)
+		let mut node = LayoutNode::new_container_node(ContainerData::new_empty(), 0);
+		node.area = area;
+		node
 	}
 
-	pub fn new_window_node(window_data: WindowData, parent_node_index: usize) -> Self {
+	pub fn new(layout_node_type: LayoutNodeType, parent_node_index: usize) -> Self {
 		LayoutNode {
-			node_type: LayoutNodeType::Window(window_data),
+			node_type: layout_node_type,
 			parent_node_index,
 			weight: 1.0,
+			area: Area::new(Origin::new(0, 0), Size::new(0, 0)),
 		}
+	}
+
+	pub fn new_window_node(shell_handle: WLRXdgV6ShellSurfaceHandle, parent_node_index: usize) -> Self {
+		LayoutNode::new(LayoutNodeType::Window(shell_handle), parent_node_index)
 	}
 
 	pub fn new_container_node(container_node_data: ContainerData, parent_node_index: usize) -> Self {
-		LayoutNode {
-			node_type: LayoutNodeType::Container(container_node_data),
-			parent_node_index,
-			weight: 1.0,
-		}
+		LayoutNode::new(LayoutNodeType::Container(container_node_data), parent_node_index)
 	}
 
 	pub fn is_node_containing_shell_handle(&self, shell_handle: &WLRXdgV6ShellSurfaceHandle) -> bool {
-		match self.node_type {
-			LayoutNodeType::Window(ref window_data) => window_data.shell_handle == *shell_handle,
+		match &self.node_type {
+			LayoutNodeType::Window(node_shell_handle) => *node_shell_handle == *shell_handle,
 			_ => false,
 		}
 	}
@@ -145,6 +143,12 @@ impl Layout {
 		}
 	}
 
+	pub fn update_area(&mut self, area: Area) {
+		if let Some(ref mut root_node) = self.nodes[0] {
+			root_node.area = area;
+		}
+	}
+
 	pub fn root_node(&self) -> Option<&LayoutNode> {
 		if let Some(ref root_node) = self.nodes[0] {
 			Some(root_node)
@@ -155,10 +159,7 @@ impl Layout {
 
 	pub fn render_box(&self) -> Option<Area> {
 		if let Some(root_node) = self.root_node() {
-			match root_node.node_type {
-				LayoutNodeType::Container(ContainerData { area, .. }) => Some(area),
-				_ => None,
-			}
+			Some(root_node.area)
 		} else {
 			None
 		}
@@ -169,14 +170,13 @@ impl Layout {
 			.nodes
 			.iter()
 			.filter_map(|element| {
-				if let Some(LayoutNode { node_type, .. }) = element {
-					if let LayoutNodeType::Window(ref window_data) = node_type {
-						return Some(window_data);
+				if let Some(LayoutNode { node_type, area, .. }) = element {
+					if let LayoutNodeType::Window(shell_handle) = node_type {
+						return Some(WindowData::new(shell_handle.clone(), area.clone()));
 					}
 				}
 				None
-			}).cloned()
-			.collect()
+			}).collect()
 	}
 
 	pub fn parent_node_index_of(&self, node_index: usize) -> Option<usize> {
@@ -218,46 +218,55 @@ impl Layout {
 		None
 	}
 
+	pub fn get_node_area(&self, node_index: usize) -> Option<Area> {
+		if let Some(node) = &self.nodes[node_index] {
+			return Some(node.area);
+		}
+		None
+	}
+
 	pub fn rebalance_container(&mut self, node_index: usize) {
 		if let Some(container_data) = self.get_container_data_of_node(node_index) {
-			let children_weight_sum: f32 = container_data
-				.children_indices
-				.iter()
-				.map(|index| match &self.nodes[*index] {
-					Some(layout_node) => layout_node.weight,
-					None => 0.0,
-				}).sum();
+			if let Some(container_area) = self.get_node_area(node_index) {
+				let children_weight_sum: f32 = container_data
+					.children_indices
+					.iter()
+					.map(|index| match &self.nodes[*index] {
+						Some(layout_node) => layout_node.weight,
+						None => 0.0,
+					}).sum();
 
-			let mut origin_offset: i32 = 0;
-			for index in container_data.children_indices {
-				if let Some(Some(layout_node)) = self.nodes.iter_mut().nth(index) {
-					match &mut layout_node.node_type {
-						LayoutNodeType::Window(ref mut window_data) => match container_data.axis {
+				let mut origin_offset: i32 = 0;
+				for child_index in container_data.children_indices {
+					if let Some(Some(child_node)) = self.nodes.iter_mut().nth(child_index) {
+						match container_data.axis {
 							ContainerAxis::Horizontal => {
-								let area_width =
-									((layout_node.weight / children_weight_sum) * container_data.area.size.width as f32) as i32;
-								let area_height = container_data.area.size.height;
+								let area_width = ((child_node.weight / children_weight_sum) * container_area.size.width as f32) as i32;
+								let area_height = container_area.size.height;
 								let new_area = Area::new(
-									Origin::new(origin_offset, container_data.area.origin.y),
+									Origin::new(origin_offset, container_area.origin.y),
 									Size::new(area_width, area_height),
 								);
-								window_data.area = new_area;
+								child_node.area = new_area;
 								origin_offset += area_width;
 							}
 							ContainerAxis::Vertical => {
-								let area_width = container_data.area.size.height;
+								let area_width = container_area.size.height;
 								let area_height =
-									((layout_node.weight / children_weight_sum) * container_data.area.size.height as f32) as i32;
+									((child_node.weight / children_weight_sum) * container_area.size.height as f32) as i32;
 								let new_area = Area::new(
-									Origin::new(container_data.area.origin.x, origin_offset),
+									Origin::new(container_area.origin.x, origin_offset),
 									Size::new(area_width, area_height),
 								);
-								window_data.area = new_area;
+								child_node.area = new_area;
 								origin_offset += area_height;
 							}
-						},
-						_ => {}
-					}
+						}
+
+						// TODO: Implement recursive rebalancing of containers
+						/* if let LayoutNodeType::Container(_) = child_node.node_type {
+							self.rebalance_container(child_index);
+						} */					}
 				}
 			}
 		}
@@ -282,8 +291,7 @@ impl Layout {
 	}
 
 	pub fn add_window(&mut self, shell_handle: WLRXdgV6ShellSurfaceHandle) {
-		let window_data = WindowData::new(shell_handle);
-		let node_index = self.add_node(LayoutNode::new_window_node(window_data, 0));
+		let node_index = self.add_node(LayoutNode::new_window_node(shell_handle, 0));
 		self.add_child_to_container_of_active_node(node_index);
 		self.nb_windows += 1;
 		self.active_node_index = node_index;

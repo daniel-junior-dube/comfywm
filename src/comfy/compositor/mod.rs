@@ -8,6 +8,8 @@ use wlroots::{
 	XCursorManager as WLRXCursorManager, XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle,
 };
 
+use wlroots::wlroots_sys::protocols::server_decoration::server::org_kde_kwin_server_decoration_manager::Mode as ServerDecorationMode;
+
 pub mod commands;
 pub mod output;
 pub mod shell;
@@ -49,11 +51,18 @@ pub fn generate_default_compositor() -> WLRCompositor {
 	// ? WIP: Initialize the compositor structure
 	let mut compositor = WLRCompositorBuilder::new()
 		.gles2(true)
+		.data_device(true)
+		.server_decoration_manager(true)
 		.input_manager(Box::new(InputManagerHandler))
 		.output_manager(Box::new(OutputManagerHandler))
 		.xdg_shell_v6_manager(Box::new(XdgV6ShellManagerHandler))
-		.data_device(true)
 		.build_auto(ComfyKernel::new(layout, xcursor_manager, cursor));
+
+	// ? Use the server-side decoration mode to avoid client-side decoration
+	// * Note: `ServerDecorationMode::None` does not seem to work
+	if let Some(ref mut decoration_manager) = compositor.server_decoration_manager {
+		decoration_manager.set_default_mode(ServerDecorationMode::Server);
+	}
 
 	// ? WIP: Initialize and add the seat structures to the kernel
 	{
@@ -138,12 +147,12 @@ impl ComfyKernel {
 
 		available_commands.insert(
 			XkbKeySet::from_string("2".to_string()).unwrap(),
-			Command::new_with_args(CommandType::Exec, vec!["firefox".to_string()]),
+			Command::new_with_args(CommandType::Exec, vec!["gnome-terminal".to_string()]),
 		);
 
 		available_commands.insert(
 			XkbKeySet::from_string("3".to_string()).unwrap(),
-			Command::new_with_args(CommandType::Exec, vec!["chromium".to_string()]),
+			Command::new_with_args(CommandType::Exec, vec!["firefox".to_string()]),
 		);
 
 		available_commands.insert(

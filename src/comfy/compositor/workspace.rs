@@ -1,6 +1,6 @@
 use wlroots::{Area, XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle};
 
-use windows::layout::Layout;
+use layout::Layout;
 
 /*
 .##...##...####...#####...##..##...####...#####....####....####...######.

@@ -9,7 +9,7 @@ use wlroots::{
 
 use compositor::workspace::Workspace;
 use compositor::ComfyKernel;
-use windows::WindowData;
+use layout::WindowData;
 
 /*
 ..####...##..##..######..#####...##..##..######..#####....####...######...####..
@@ -25,10 +25,18 @@ pub struct OutputData {
 }
 
 impl OutputData {
+	pub fn new_empty() -> Self {
+		OutputData::new(Area::new(Origin::new(0, 0), Size::new(0, 0)))
+	}
+
 	pub fn new(area: Area) -> Self {
 		OutputData {
 			workspace: Workspace::new(area),
 		}
+	}
+
+	pub fn update_area(&mut self, area: Area) {
+		self.workspace.window_layout.update_area(area);
 	}
 }
 
@@ -46,6 +54,7 @@ impl OutputData {
 .##..##..##..##..##..##..#####...######..######..##..##.
 ........................................................
 */
+
 // ? Handles events on the output layout (how displays are organized)
 pub struct OutputLayoutHandler;
 impl WLROutputLayoutHandler for OutputLayoutHandler {}
@@ -53,9 +62,9 @@ impl WLROutputLayoutHandler for OutputLayoutHandler {}
 // ? Handles the actions and events of a specific output
 pub struct OutputHandler;
 impl OutputHandler {
-	fn render_window(&self, window: &WindowData, renderer: &mut Renderer) {
+	fn render_window(&self, window_data: &WindowData, renderer: &mut Renderer) {
 		dehandle!(
-			let WindowData {shell_handle, area} = window;
+			let WindowData {shell_handle, area} = window_data;
 			@shell = {&shell_handle};
 			@surface = {shell.surface()};
 			if true {
@@ -120,15 +129,12 @@ impl WLROutputHandler for OutputHandler {
 			@output = {output_handle};
 			let comfy_kernel: &mut ComfyKernel = compositor.data.downcast_mut().unwrap();
 			let output_data_map = &mut comfy_kernel.output_data_map;
-			println!("New output detected, named: {}", output.name());
 			let (width, height) = output.size();
-			output_data_map.insert(
-				output.name(),
-				OutputData::new(
-					Area::new(
-						Origin::new(0, 0),
-						Size::new(width, height)
-					)
+			let output_data = output_data_map.get_mut(&output.name()).unwrap();
+			output_data.update_area(
+				Area::new(
+					Origin::new(0, 0),
+					Size::new(width, height)
 				)
 			);
 			()
@@ -136,23 +142,23 @@ impl WLROutputHandler for OutputHandler {
 	}
 
 	/// Called every time the output is enabled.
-	fn on_enable(&mut self, compositor_handle: WLRCompositorHandle, output_handle: WLROutputHandle) {
-		println!("on_enable");
+	fn on_enable(&mut self, _: WLRCompositorHandle, _: WLROutputHandle) {
+		//println!("on_enable");
 	}
 
 	/// Called every time the output scale changes.
-	fn on_scale_change(&mut self, compositor_handle: WLRCompositorHandle, output_handle: WLROutputHandle) {
-		println!("on_scale_change");
+	fn on_scale_change(&mut self, _: WLRCompositorHandle, _: WLROutputHandle) {
+		//println!("on_scale_change");
 	}
 
 	/// Called every time the buffers are swapped on an output.
-	fn on_buffers_swapped(&mut self, compositor_handle: WLRCompositorHandle, output_handle: WLROutputHandle) {
-		println!("on_buffers_swapped");
+	fn on_buffers_swapped(&mut self, _: WLRCompositorHandle, _: WLROutputHandle) {
+		//println!("on_buffers_swapped");
 	}
 
 	/// Called every time the buffers need to be swapped on an output.
-	fn needs_swap(&mut self, compositor_handle: WLRCompositorHandle, output_handle: WLROutputHandle) {
-		println!("needs_swap");
+	fn needs_swap(&mut self, _: WLRCompositorHandle, _: WLROutputHandle) {
+		//println!("needs_swap");
 	}
 
 	fn destroyed(&mut self, compositor_handle: WLRCompositorHandle, output_handle: WLROutputHandle) {
@@ -206,20 +212,10 @@ impl WLROutputManagerHandler for OutputManagerHandler {
 			cursor.warp(None, x, y);
 
 			println!("New output detected, named: {}", output.name());
-			// TODO: Add output data for output
-			/* println!("Box output: {:?}", output_layout.get_box(output));
-			println!("Box Some(output): {:?}", output_layout.get_box(Some(output)));
-			println!("Box None: {:?}", output_layout.get_box(None)); */
-			/* let (width, height) = output.size();
 			output_data_map.insert(
 				output.name(),
-				OutputData::new(
-					Area::new(
-						Origin::new(0, 0),
-						Size::new(width, height)
-					)
-				)
-			); */
+				OutputData::new_empty()
+			);
 			()
 		);
 		Some(result)

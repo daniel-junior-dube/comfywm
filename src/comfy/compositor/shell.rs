@@ -4,7 +4,6 @@ use wlroots::{
 	XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle,
 };
 
-use compositor::output::OutputData;
 use compositor::surface::SurfaceHandler;
 use compositor::ComfyKernel;
 
