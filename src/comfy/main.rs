@@ -16,6 +16,7 @@ MMMMMMMMMMM MMMMMMMMMMM MMMMMMMMMMMMMM MMMMMMMMMMMM MMMMMMMMMM MMMMMMMMMMMMMM MM
 */
 #[macro_use]
 extern crate wlroots;
+extern crate common;
 extern crate libc;
 
 use wlroots::utils::{init_logging as wlr_init_logging, WLR_DEBUG};
