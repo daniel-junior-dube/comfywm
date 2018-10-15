@@ -2,8 +2,7 @@ use wlroots::key_events::KeyEvent as WLRKeyEvent;
 use wlroots::wlroots_sys::wlr_key_state::WLR_KEY_PRESSED;
 use wlroots::xkbcommon::xkb::{keysym_from_name, KEYSYM_NO_FLAGS};
 use wlroots::{
-	CompositorHandle as WLRCompositorHandle,
-	KeyboardHandle as WLRKeyboardHandle, KeyboardHandler as WLRKeyboardHandler,
+	CompositorHandle as WLRCompositorHandle, KeyboardHandle as WLRKeyboardHandle, KeyboardHandler as WLRKeyboardHandler,
 };
 
 use std::collections::HashSet;
@@ -37,12 +36,7 @@ impl KeyboardHandler {
 		}
 	}
 
-	fn handle_normal_mode_key_release(
-		&mut self,
-		_: &mut ComfyKernel,
-		_: WLRKeyboardHandle,
-		_: &WLRKeyEvent,
-	) {}
+	fn handle_normal_mode_key_release(&mut self, _: &mut ComfyKernel, _: WLRKeyboardHandle, _: &WLRKeyEvent) {}
 
 	// SUPER MODE
 	fn handle_super_mode_key_press(
@@ -51,7 +45,6 @@ impl KeyboardHandler {
 		_: WLRKeyboardHandle,
 		key_event: &WLRKeyEvent,
 	) {
-
 		// TODO: DJDUBE - Clean this mess!
 		let key_set = XkbKeySet::from_vec_without_check(&key_event.pressed_keys());
 		let xkb_keysyms_set_option = match comfy_kernel.current_mode {
@@ -86,7 +79,6 @@ impl KeyboardHandler {
 		_keyboard: WLRKeyboardHandle,
 		key_event: &WLRKeyEvent,
 	) {
-
 		// TODO: DJDUBE - Clean this mess!
 		let key_set = XkbKeySet::from_vec_without_check(&key_event.pressed_keys());
 		match comfy_kernel.current_mode {

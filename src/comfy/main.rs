@@ -18,13 +18,16 @@ MMMMMMMMMMM MMMMMMMMMMM MMMMMMMMMMMMMM MMMMMMMMMMMM MMMMMMMMMM MMMMMMMMMMMMMM MM
 extern crate wlroots;
 extern crate common;
 extern crate libc;
+extern crate toml;
 
 use wlroots::utils::{init_logging as wlr_init_logging, WLR_DEBUG};
 
 mod compositor;
+mod config;
 mod input;
 
 use compositor::generate_default_compositor;
+use config::Config;
 
 /*
 .##.....##....###....####.##....##
@@ -37,6 +40,7 @@ use compositor::generate_default_compositor;
 */
 
 fn main() {
+	let config = Config::load();
 	wlr_init_logging(WLR_DEBUG, None);
 	let compositor = generate_default_compositor();
 	compositor.run()
