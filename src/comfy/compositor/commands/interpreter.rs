@@ -45,14 +45,13 @@ impl CommandInterpreter {
 				handle_terminate(command, comfy_kernel);
 			}
 			_ => {
-				println!("ERROR: Command type unknown!");
+				error!("Command type unknown!");
 			}
 		}
 	}
 }
 
 fn handle_move_active_window_up(_: &CompositorCommand, comfy_kernel: &mut ComfyKernel) {
-	println!("CommandType::MoveActiveWindowUp");
 	comfy_kernel.y = comfy_kernel.y - 10;
 }
 
@@ -72,7 +71,7 @@ fn handle_exec(command: &CompositorCommand, _: &mut ComfyKernel) {
 	let command_clone = command.clone();
 	let nb_of_arguments = command_clone.args.len();
 	if nb_of_arguments == 0 {
-		println!("Error: Tried to execute an 'Exec' command without providing any arguments!");
+		error!("Tried to execute an 'Exec' command without providing any arguments!");
 	} else {
 		thread::spawn(move || {
 			let executable = &command_clone.args[0];
@@ -86,6 +85,6 @@ fn handle_exec(command: &CompositorCommand, _: &mut ComfyKernel) {
 }
 
 fn handle_terminate(_: &CompositorCommand, _: &mut ComfyKernel) {
-	println!("Goodbye!");
+	info!("Goodbye!");
 	wlr_terminate();
 }

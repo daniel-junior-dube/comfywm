@@ -18,6 +18,9 @@ MMMMMMMMMMM MMMMMMMMMMM MMMMMMMMMMMMMM MMMMMMMMMMMM MMMMMMMMMM MMMMMMMMMMMMMM MM
 extern crate wlroots;
 extern crate common;
 extern crate libc;
+#[macro_use]
+extern crate log;
+extern crate env_logger;
 
 use wlroots::utils::{init_logging as wlr_init_logging, WLR_DEBUG};
 
@@ -37,6 +40,7 @@ use compositor::generate_default_compositor;
 */
 
 fn main() {
+	env_logger::init();
 	wlr_init_logging(WLR_DEBUG, None);
 	let compositor = generate_default_compositor();
 	compositor.run()
