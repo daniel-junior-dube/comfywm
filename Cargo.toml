@@ -21,6 +21,6 @@ name = "comfywm"
 path = "src/comfy/main.rs"
 
 [dependencies]
-toml = "0.4.6"
+toml = "0.4.8"
 wlroots = { path = "./lib/wlroots-rs" }
 libc = "0.2.43"
