@@ -127,32 +127,32 @@ impl ComfyKernel {
 		let mut available_commands = HashMap::<XkbKeySet, Command>::new();
 
 		available_commands.insert(
-			XkbKeySet::from_string("1".to_string()).unwrap(),
+			XkbKeySet::from_str("1").unwrap(),
 			Command::new_with_args(CommandType::Exec, vec!["weston-terminal".to_string()]),
 		);
 
 		available_commands.insert(
-			XkbKeySet::from_string("Escape".to_string()).unwrap(),
+			XkbKeySet::from_str("Escape").unwrap(),
 			Command::new(CommandType::Terminate),
 		);
 
 		available_commands.insert(
-			XkbKeySet::from_string("w".to_string()).unwrap(),
+			XkbKeySet::from_str("w").unwrap(),
 			Command::new(CommandType::MoveActiveWindowUp),
 		);
 
 		available_commands.insert(
-			XkbKeySet::from_string("s".to_string()).unwrap(),
+			XkbKeySet::from_str("s").unwrap(),
 			Command::new(CommandType::MoveActiveWindowDown),
 		);
 
 		available_commands.insert(
-			XkbKeySet::from_string("a".to_string()).unwrap(),
+			XkbKeySet::from_str("a").unwrap(),
 			Command::new(CommandType::MoveActiveWindowLeft),
 		);
 
 		available_commands.insert(
-			XkbKeySet::from_string("d".to_string()).unwrap(),
+			XkbKeySet::from_str("d").unwrap(),
 			Command::new(CommandType::MoveActiveWindowRight),
 		);
 

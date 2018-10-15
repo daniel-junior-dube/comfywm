@@ -2,6 +2,7 @@ pub mod keybinding;
 pub mod parser;
 
 use self::keybinding::Keybindings;
+use std::env::current_dir;
 use std::env::var;
 use std::path::Path;
 
@@ -15,13 +16,13 @@ pub struct Config {
 }
 
 impl Config {
-	pub fn load() -> Config {
+	pub fn load() -> Result<Config, String> {
 		let keybindings_file_path = find_config_file(KEYBINDING_FILE_NAME);
 		let theme_file_path = find_config_file(THEME_FILE_NAME);
 
-		Config {
-			keybindings: Keybindings::new(),
-		}
+		Ok(Config {
+			keybindings: Keybindings::load(keybindings_file_path)?,
+		})
 	}
 }
 

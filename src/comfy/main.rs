@@ -18,7 +18,10 @@ MMMMMMMMMMM MMMMMMMMMMM MMMMMMMMMMMMMM MMMMMMMMMMMM MMMMMMMMMM MMMMMMMMMMMMMM MM
 extern crate wlroots;
 extern crate common;
 extern crate libc;
+extern crate serde;
 extern crate toml;
+#[macro_use]
+extern crate serde_derive;
 
 use wlroots::utils::{init_logging as wlr_init_logging, WLR_DEBUG};
 
@@ -40,7 +43,7 @@ use config::Config;
 */
 
 fn main() {
-	let config = Config::load();
+	let config = Config::load().unwrap();
 	wlr_init_logging(WLR_DEBUG, None);
 	let compositor = generate_default_compositor();
 	compositor.run()

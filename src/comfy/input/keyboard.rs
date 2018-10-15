@@ -179,7 +179,7 @@ impl XkbKeySet {
 	/// Parses the given string into a XkbKeySet which contains a set of xkb keys (u32).
 	/// The provided string should correspond to a list of xkb keys separated only by '+' characters.
 	///
-	pub fn from_string(key_set_string: String) -> Result<XkbKeySet, String> {
+	pub fn from_str(key_set_string: &str) -> Result<XkbKeySet, String> {
 		if key_set_string.is_empty() {
 			return Err("Provided string is empty".to_string());
 		}
@@ -231,26 +231,26 @@ mod tests {
 	#[test]
 	fn generate_from_string_fails_with_wrong_keysym() {
 		// ? Testing 'heck'
-		assert!(XkbKeySet::from_string("heck".to_string()).is_err());
+		assert!(XkbKeySet::from_str("heck").is_err());
 
 		// ? Testing 'Control_L' + 'heck'
-		assert!(XkbKeySet::from_string("Control_L+heck".to_string()).is_err());
+		assert!(XkbKeySet::from_str("Control_L+heck").is_err());
 	}
 
 	#[test]
 	fn generate_from_string_fails_with_empty_string() {
-		assert!(XkbKeySet::from_string("".to_string()).is_err());
+		assert!(XkbKeySet::from_str("").is_err());
 	}
 
 	#[test]
 	fn generate_from_string_fails_with_duplicates() {
-		assert!(XkbKeySet::from_string("Control_L+Control_L".to_string()).is_err());
+		assert!(XkbKeySet::from_str("Control_L+Control_L").is_err());
 	}
 
 	#[test]
 	fn generate_from_string_succeeds_with_valid_string() {
 		// ? Testing 'plus'
-		match XkbKeySet::from_string("plus".to_string()) {
+		match XkbKeySet::from_str("plus") {
 			Err(e) => {
 				println!("ERROR: {}", e);
 				assert!(false);
@@ -261,7 +261,7 @@ mod tests {
 		}
 
 		// ? Testing 'Control_L' + 'a'
-		match XkbKeySet::from_string("Control_L+a".to_string()) {
+		match XkbKeySet::from_str("Control_L+a") {
 			Err(e) => {
 				println!("ERROR: {}", e);
 				assert!(false);
@@ -275,7 +275,7 @@ mod tests {
 		}
 
 		// ? Testing 'Control_L' + 'Alt_L' + 'Delete'
-		match XkbKeySet::from_string("Control_L+Alt_L+Delete".to_string()) {
+		match XkbKeySet::from_str("Control_L+Alt_L+Delete") {
 			Err(e) => {
 				println!("ERROR: {}", e);
 				assert!(false);

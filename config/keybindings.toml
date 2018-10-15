@@ -1,4 +1,3 @@
 [keybindings]
-"Mod1+Shift+Up" = "scale_up 0.1"
-"Mod1+Up" = "move_up"
-"Ctrl+Shift+Space" = "exec gnome-terminal"
+"Control_L+Up" = "move_active_window_up"
+"Control_L+Shift_L" = "exec gnome-terminal"
