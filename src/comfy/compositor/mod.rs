@@ -5,7 +5,7 @@ use wlroots::{
 	Capability, Compositor as WLRCompositor, CompositorBuilder as WLRCompositorBuilder, Cursor as WLRCursor,
 	CursorHandle as WLRCursorHandle, KeyboardHandle as WLRKeyboardHandle, OutputLayout as WLROutputLayout,
 	OutputLayoutHandle as WLROutputLayoutHandle, Seat as WLRSeat, SeatHandle as WLRSeatHandle,
-	XCursorManager as WLRXCursorManager, XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle,
+	XCursorManager as WLRXCursorManager, XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle, XdgV6ShellState as WLRXdgV6ShellState
 };
 
 use wlroots::wlroots_sys::protocols::server_decoration::server::org_kde_kwin_server_decoration_manager::Mode as ServerDecorationMode;
@@ -123,11 +123,8 @@ pub struct ComfyKernel {
 	pub active_output_name: String,
 	pub output_data_map: HashMap<String, OutputData>,
 	pub workspace_pool: Vec<Workspace>,
-	pub shells: Vec<WLRXdgV6ShellSurfaceHandle>,
 	pub seat_handle: Option<WLRSeatHandle>,
 	pub current_mode: CompositorMode,
-	pub x: i32,
-	pub y: i32,
 	pub super_mode_xkb_key: u32,
 	pub available_commands: HashMap<XkbKeySet, Command>,
 }
@@ -188,11 +185,8 @@ impl ComfyKernel {
 			active_output_name: String::from(""),
 			output_data_map: HashMap::<String, OutputData>::new(),
 			workspace_pool: vec![],
-			shells: vec![],
 			seat_handle: None,
 			current_mode: CompositorMode::NormalMode,
-			x: 0,
-			y: 0,
 			super_mode_xkb_key: keysyms::KEY_Control_R,
 			available_commands: available_commands,
 		}
@@ -213,6 +207,56 @@ impl ComfyKernel {
 				}).unwrap();
 			}
 		}).unwrap();
+	}
+
+	pub fn find_and_remove_window(&mut self, shell_handle: WLRXdgV6ShellSurfaceHandle) {
+		let output_layout_handle = self.output_layout_handle.clone();
+
+		with_handles!([(_output_layout: {output_layout_handle})] => {
+			// TODO: Use output_layout to find output name, which can be used to get the appropriate output
+			let mut fallback_shell_handle_option = None;
+			for output_data in self.output_data_map.values_mut() {
+				if output_data.workspace.contains_window(&shell_handle) {
+					fallback_shell_handle_option = output_data.workspace.remove_window(&shell_handle);
+				}
+			}
+			if let Some(fallback_shell_handle) = fallback_shell_handle_option {
+				self.set_activated(&fallback_shell_handle);
+			}
+			/*
+			for (mut output_handle, _) in layout.outputs() {
+				with_handles!([(output: {output_handle})] => {
+					output.schedule_frame()
+				}).unwrap();
+			} */
+		}).unwrap();
+	}
+
+	pub fn set_activated(&mut self, shell_handle: &WLRXdgV6ShellSurfaceHandle) {
+		dehandle!(
+			let seat_handle = self.seat_handle.clone().unwrap();
+			let keyboard_handle = self.keyboard_handle.clone().unwrap();
+			@seat = {seat_handle};
+			@keyboard = {keyboard_handle};
+			shell_handle.run(
+				|shell| {
+					shell.ping();
+					let surface = shell.surface();
+					surface.run(|surface| {
+						if let Some(&mut WLRXdgV6ShellState::TopLevel(ref mut toplevel)) = shell.state() {
+							toplevel.set_activated(true);
+						}
+						seat.set_keyboard(keyboard.input_device());
+						seat.keyboard_notify_enter(
+							surface,
+							&mut keyboard.keycodes(),
+							&mut keyboard.get_modifier_masks()
+						);
+					}).unwrap();
+				}
+			).unwrap();
+			()
+		);
 	}
 }
 

@@ -2,6 +2,8 @@ use wlroots::{Area, Origin, Size, XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfac
 
 use std::collections::LinkedList;
 
+use compositor::ComfyKernel;
+
 /*
 .##...##..######..##..##..#####....####...##...##..#####....####...######...####..
 .##...##....##....###.##..##..##..##..##..##...##..##..##..##..##....##....##..##.
@@ -78,6 +80,13 @@ impl ContainerData {
 				None => 0.0,
 			}).sum()
 	}
+
+	fn index_of(&self, node_index: usize) -> Option<usize> {
+		self
+			.children_indices
+			.iter()
+			.position(|element| *element == node_index)
+	}
 }
 
 /*
@@ -137,7 +146,8 @@ impl LayoutNode {
 		// ? Change area based on parent and siblings changes
 		match parent_axis {
 			ContainerAxis::Horizontal => {
-				let area_width = ((self.weight / siblings_weight_sum) * parent_area.size.width as f32) as i32;
+				let area_width =
+					((self.weight / siblings_weight_sum) * parent_area.size.width as f32).ceil() as i32;
 				let area_height = parent_area.size.height;
 				let new_area = Area::new(
 					Origin::new(origin_offset, parent_area.origin.y),
@@ -148,7 +158,7 @@ impl LayoutNode {
 			ContainerAxis::Vertical => {
 				let area_width = parent_area.size.width;
 				let area_height =
-					((self.weight / siblings_weight_sum) * parent_area.size.height as f32) as i32;
+					((self.weight / siblings_weight_sum) * parent_area.size.height as f32).ceil() as i32;
 				let new_area = Area::new(
 					Origin::new(parent_area.origin.x, origin_offset),
 					Size::new(area_width, area_height),
@@ -232,7 +242,7 @@ impl Layout {
 	}
 
 	pub fn parent_node_index_of(&self, node_index: usize) -> Option<usize> {
-		if let Some(Some(node)) = &self.nodes.get(node_index) {
+		if let Some(Some(node)) = self.nodes.get(node_index) {
 			Some(node.parent_node_index)
 		} else {
 			None
@@ -310,7 +320,7 @@ impl Layout {
 	pub fn add_child_to_container_of_active_node(&mut self, node_index: usize) {
 		let parent_node_index = self.parent_node_index_of_active_node();
 		// ? Set parent to child
-		if let Some(node) = &mut self.nodes[node_index] {
+		if let Some(ref mut node) = self.nodes[node_index] {
 			node.parent_node_index = parent_node_index;
 		}
 
@@ -325,41 +335,139 @@ impl Layout {
 		self.rebalance_container(parent_node_index);
 	}
 
+	pub fn index_of_node_containing_shell(&self, shell_handle: &WLRXdgV6ShellSurfaceHandle) -> Option<usize> {
+		self.nodes.iter().position(|element| match *element {
+			Some(ref node) => node.is_node_containing_shell_handle(shell_handle),
+			None => false,
+		})
+	}
+
+	pub fn set_activated(&mut self, node_index: usize) {
+		self.active_node_index = node_index;
+		if let Some(Some(node)) = self.nodes.get(node_index) {
+			// TODO: Handle 'set activated' on Container node
+			if let LayoutNodeType::Window(ref shell_handle) = node.node_type {
+				shell_handle.run(|shell| {
+					if let Some(WLRXdgV6ShellState::TopLevel(ref mut xdg_top_level)) = shell.state() {
+						xdg_top_level.set_activated(true);
+					}
+				}).unwrap();
+			}
+		}
+	}
+
 	pub fn add_window(&mut self, shell_handle: WLRXdgV6ShellSurfaceHandle) {
 		let node_index = self.add_node(LayoutNode::new_window_node(shell_handle, 0));
 		self.add_child_to_container_of_active_node(node_index);
 		self.nb_windows += 1;
-		self.active_node_index = node_index;
+		self.set_activated(node_index);
 	}
 
-	pub fn remove_node(&mut self, node_index: usize) {
-		let mut should_remove_container = false;
-		if let Some(parent_node_index) = self.parent_node_index_of(node_index) {
-			if let Some(parent_node) = &mut self.nodes[parent_node_index] {
-				if let LayoutNodeType::Container(ref mut container_node_data) = parent_node.node_type {
-					let result = container_node_data
-						.children_indices
-						.iter()
-						.position(|element| *element == node_index);
-					if let Some(index_of_child) = result {
-						container_node_data.children_indices.remove(index_of_child);
-						should_remove_container = container_node_data.children_indices.len() == 0;
+	pub fn find_fallback_node_index(&self, node_index: usize) -> Option<usize> {
+		let mut parent_node_index = 0;
+		if let Some(Some(node)) = self.nodes.get(self.active_node_index) {
+			parent_node_index = node.parent_node_index;
+		}
+
+		// ? Use left sibling or right sibling as fallback
+		if let Some(Some(parent_node)) = &self.nodes.get(parent_node_index) {
+			if let LayoutNodeType::Container(container_data) = &parent_node.node_type {
+				let index_of_child = container_data.index_of(node_index).unwrap();
+				if index_of_child > 0 {
+					// ? Left sibling
+					if let Some(sibling_index) = container_data.children_indices.get(index_of_child - 1) {
+						return Some(*sibling_index);
+					}
+					// ? Right sibling
+					if let Some(sibling_index) = container_data.children_indices.get(index_of_child + 1) {
+						return Some(*sibling_index);
 					}
 				}
 			}
-			if should_remove_container {
-				self.remove_node(parent_node_index);
+
+			// ? If parent has no other child and parent is root_node
+			if parent_node_index == 0 {
+				return None;
 			}
 		}
+
+		// ? Check for a fallback for the parent
+		self.find_fallback_node_index(parent_node_index)
 	}
 
-	pub fn remove_window(&mut self, shell_handle: &WLRXdgV6ShellSurfaceHandle) {
-		let result = self.nodes.iter().position(|element| match *element {
-			Some(ref node) => node.is_node_containing_shell_handle(shell_handle),
-			None => false,
-		});
-		if let Some(index) = result {
-			self.remove_node(index);
+	pub fn get_fallback_shell_handle(&self) -> Option<WLRXdgV6ShellSurfaceHandle> {
+		if let Some(index_of_fallback) = self.find_fallback_node_index(self.active_node_index) {
+			if let Some(Some(node)) = self.nodes.get(index_of_fallback) {
+				if let LayoutNodeType::Window(shell_handle) = &node.node_type {
+					let shell_handle_clone = shell_handle.clone();
+					return Some(shell_handle_clone);
+				}
+			}
 		}
+
+		None
+	}
+
+	pub fn remove_node(&mut self, node_index: usize) {
+		// ? Can't remove root node
+		if node_index == 0 { return; }
+
+		// ? Iterative and accending remove
+		let mut indices_of_nodes_to_remove = vec![node_index];
+		let mut index_of_container_to_rebalance = 0;
+		while let Some(index_of_node_to_remove) = indices_of_nodes_to_remove.pop() {
+			// ? Remove from parent
+			if let Some(parent_node_index) = self.parent_node_index_of(index_of_node_to_remove) {
+				if let Some(parent_node) = &mut self.nodes[parent_node_index] {
+					if let LayoutNodeType::Container(ref mut container_node_data) = parent_node.node_type {
+						if let Some(index_of_child) = container_node_data.index_of(index_of_node_to_remove) {
+							container_node_data.children_indices.remove(index_of_child);
+
+							// ? Remove parent if empty
+							if container_node_data.children_indices.len() == 0 && parent_node_index != 0 {
+								indices_of_nodes_to_remove.push(parent_node_index);
+							} else {
+								index_of_container_to_rebalance = parent_node_index;
+							}
+						}
+					}
+				}
+			}
+
+			// ? Remove the node
+			self.nodes[index_of_node_to_remove] = None;
+		}
+
+		// ? Rebalance the original parent node
+		self.rebalance_container(index_of_container_to_rebalance);
+	}
+
+	pub fn remove_window(&mut self, shell_handle: &WLRXdgV6ShellSurfaceHandle) -> Option<WLRXdgV6ShellSurfaceHandle> {
+		if let Some(node_index) = self.index_of_node_containing_shell(shell_handle) {
+			if let Some(fallback_node_index) = self.find_fallback_node_index(node_index) {
+				self.remove_node(node_index);
+
+				if let Some(node) = &self.nodes[fallback_node_index] {
+					if let LayoutNodeType::Window(fallback_shell_handle) = &node.node_type {
+						return Some(fallback_shell_handle.clone());
+					}
+				}
+			}
+		}
+
+		None
+	}
+
+	pub fn contains_window(&self, shell_handle: &WLRXdgV6ShellSurfaceHandle) -> bool {
+		for element in &self.nodes {
+			if let Some(node) = element {
+				if let LayoutNodeType::Window(node_shell_handle) = &node.node_type {
+					if *node_shell_handle == *shell_handle {
+						return true;
+					}
+				}
+			}
+		}
+		false
 	}
 }

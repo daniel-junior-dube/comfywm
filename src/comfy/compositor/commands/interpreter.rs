@@ -51,21 +51,20 @@ impl CommandInterpreter {
 	}
 }
 
-fn handle_move_active_window_up(_: &CompositorCommand, comfy_kernel: &mut ComfyKernel) {
-	println!("CommandType::MoveActiveWindowUp");
-	comfy_kernel.y = comfy_kernel.y - 10;
+fn handle_move_active_window_up(_: &CompositorCommand, _: &mut ComfyKernel) {
+	println!("handle_move_active_window_up");
 }
 
-fn handle_move_active_window_down(_: &CompositorCommand, comfy_kernel: &mut ComfyKernel) {
-	comfy_kernel.y = comfy_kernel.y + 10;
+fn handle_move_active_window_down(_: &CompositorCommand, _: &mut ComfyKernel) {
+	println!("handle_move_active_window_down");
 }
 
-fn handle_move_active_window_left(_: &CompositorCommand, comfy_kernel: &mut ComfyKernel) {
-	comfy_kernel.x = comfy_kernel.x - 10;
+fn handle_move_active_window_left(_: &CompositorCommand, _: &mut ComfyKernel) {
+	println!("handle_move_active_window_left");
 }
 
-fn handle_move_active_window_right(_: &CompositorCommand, comfy_kernel: &mut ComfyKernel) {
-	comfy_kernel.x = comfy_kernel.x + 10;
+fn handle_move_active_window_right(_: &CompositorCommand, _: &mut ComfyKernel) {
+	println!("handle_move_active_window_right");
 }
 
 fn handle_exec(command: &CompositorCommand, _: &mut ComfyKernel) {

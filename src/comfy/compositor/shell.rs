@@ -1,7 +1,7 @@
 use wlroots::{
 	CompositorHandle as WLRCompositorHandle, SurfaceHandler as WLRSurfaceHandler,
 	XdgV6ShellHandler as WLRXdgV6ShellHandler, XdgV6ShellManagerHandler as WLRXdgV6ShellManagerHandler,
-	XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle,
+	XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle, XdgV6ShellState as WLRXdgV6ShellState
 };
 
 use compositor::surface::SurfaceHandler;
@@ -18,13 +18,11 @@ use compositor::ComfyKernel;
 
 pub struct XdgV6ShellHandler;
 impl WLRXdgV6ShellHandler for XdgV6ShellHandler {
-	fn destroyed(&mut self, compositor: WLRCompositorHandle, shell: WLRXdgV6ShellSurfaceHandle) {
+	fn destroyed(&mut self, compositor: WLRCompositorHandle, shell_handle: WLRXdgV6ShellSurfaceHandle) {
+		println!("Call to remove window");
 		with_handles!([(compositor: {compositor})] => {
 			let comfy_kernel: &mut ComfyKernel = compositor.into();
-			let weak = shell;
-			if let Some(index) = comfy_kernel.shells.iter().position(|s| *s == weak) {
-				comfy_kernel.shells.remove(index);
-			}
+			comfy_kernel.find_and_remove_window(shell_handle);
 		}).unwrap();
 	}
 }
@@ -36,11 +34,33 @@ impl WLRXdgV6ShellManagerHandler for XdgV6ShellManagerHandler {
 		compositor_handle: WLRCompositorHandle,
 		shell_handle: WLRXdgV6ShellSurfaceHandle,
 	) -> (Option<Box<WLRXdgV6ShellHandler>>, Option<Box<WLRSurfaceHandler>>) {
-		shell_handle.run(|shell| shell.ping()).unwrap();
-		compositor_handle.run(|compositor| {
+		dehandle!(
+			@compositor = {compositor_handle};
 			let comfy_kernel: &mut ComfyKernel = compositor.into();
+			let seat = comfy_kernel.seat_handle.clone().unwrap();
+			let keyboard = comfy_kernel.keyboard_handle.clone().unwrap();
+			@seat = {seat};
+			@keyboard = {keyboard};
+			shell_handle.run(
+				|shell| {
+					shell.ping();
+					let surface = shell.surface();
+					surface.run(|surface| {
+						if let Some(&mut WLRXdgV6ShellState::TopLevel(ref mut toplevel)) = shell.state() {
+							toplevel.set_activated(true);
+						}
+						seat.set_keyboard(keyboard.input_device());
+						seat.keyboard_notify_enter(
+							surface,
+							&mut keyboard.keycodes(),
+							&mut keyboard.get_modifier_masks()
+						);
+					}).unwrap();
+				}
+			).unwrap();
 			comfy_kernel.add_window_to_active_workspace(shell_handle);
-		}).unwrap();
+			()
+		);
 		(Some(Box::new(XdgV6ShellHandler)), Some(Box::new(SurfaceHandler)))
 	}
 }

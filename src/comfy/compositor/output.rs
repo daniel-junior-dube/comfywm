@@ -63,10 +63,8 @@ impl WLROutputLayoutHandler for OutputLayoutHandler {}
 pub struct OutputHandler;
 impl OutputHandler {
 	fn render_window(&self, window_data: &WindowData, renderer: &mut Renderer) {
-		dehandle!(
-			let WindowData {shell_handle, area} = window_data;
-			@shell = {&shell_handle};
-			@surface = {shell.surface()};
+		let WindowData {shell_handle, area} = window_data;
+		with_handles!([(shell: {shell_handle}), (surface: {shell.surface()})] => {
 			if true {
 				let transform = renderer.output.get_transform().invert();
 				let matrix = wlr_project_box(
@@ -80,8 +78,7 @@ impl OutputHandler {
 				}
 				surface.send_frame_done(current_time());
 			};
-			()
-		);
+		}).unwrap();
 	}
 }
 impl WLROutputHandler for OutputHandler {
