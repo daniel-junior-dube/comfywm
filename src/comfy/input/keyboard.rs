@@ -2,8 +2,7 @@ use wlroots::key_events::KeyEvent as WLRKeyEvent;
 use wlroots::wlroots_sys::wlr_key_state::WLR_KEY_PRESSED;
 use wlroots::xkbcommon::xkb::{keysym_from_name, KEYSYM_NO_FLAGS};
 use wlroots::{
-	CompositorHandle as WLRCompositorHandle,
-	KeyboardHandle as WLRKeyboardHandle, KeyboardHandler as WLRKeyboardHandler,
+	CompositorHandle as WLRCompositorHandle, KeyboardHandle as WLRKeyboardHandle, KeyboardHandler as WLRKeyboardHandler,
 };
 
 use std::collections::HashSet;
@@ -37,12 +36,7 @@ impl KeyboardHandler {
 		}
 	}
 
-	fn handle_normal_mode_key_release(
-		&mut self,
-		_: &mut ComfyKernel,
-		_: WLRKeyboardHandle,
-		_: &WLRKeyEvent,
-	) {}
+	fn handle_normal_mode_key_release(&mut self, _: &mut ComfyKernel, _: WLRKeyboardHandle, _: &WLRKeyEvent) {}
 
 	// SUPER MODE
 	fn handle_super_mode_key_press(
@@ -51,7 +45,6 @@ impl KeyboardHandler {
 		_: WLRKeyboardHandle,
 		key_event: &WLRKeyEvent,
 	) {
-
 		// TODO: DJDUBE - Clean this mess!
 		let key_set = XkbKeySet::from_vec_without_check(&key_event.pressed_keys());
 		let xkb_keysyms_set_option = match comfy_kernel.current_mode {
@@ -68,7 +61,7 @@ impl KeyboardHandler {
 		};
 
 		if let Some(xkb_keysyms_set) = xkb_keysyms_set_option {
-			println!("super_mode_state.xkb_key_set.xkb_keysyms_set: {:?}", xkb_keysyms_set);
+			debug!("super_mode_state.xkb_key_set.xkb_keysyms_set: {:?}", xkb_keysyms_set);
 			if comfy_kernel.available_commands.contains_key(&xkb_keysyms_set.clone()) {
 				let command = comfy_kernel
 					.available_commands
@@ -86,7 +79,6 @@ impl KeyboardHandler {
 		_keyboard: WLRKeyboardHandle,
 		key_event: &WLRKeyEvent,
 	) {
-
 		// TODO: DJDUBE - Clean this mess!
 		let key_set = XkbKeySet::from_vec_without_check(&key_event.pressed_keys());
 		match comfy_kernel.current_mode {
@@ -98,7 +90,7 @@ impl KeyboardHandler {
 					.difference(&key_set.keysyms_set)
 					.cloned()
 					.collect();
-				println!(
+				debug!(
 					"super_mode_state.xkb_key_set.keysyms_set: {:?}",
 					super_mode_state.xkb_key_set.keysyms_set
 				);
@@ -144,7 +136,7 @@ impl WLRKeyboardHandler for KeyboardHandler {
 					}
 
 					// TODO: DJDUBE - Put this is a log file
-					println!("Notifying seat of keypress: time_msec: '{:?}' keycode: '{}' key_state: '{}'", key_event.time_msec(), key_event.keycode(), key_event.key_state() as u32);
+					debug!("Notifying seat of keypress: time_msec: '{:?}' keycode: '{}' key_state: '{}'", key_event.time_msec(), key_event.keycode(), key_event.key_state() as u32);
 					seat.keyboard_notify_key(
 						key_event.time_msec(),
 						key_event.keycode(),
@@ -260,7 +252,7 @@ mod tests {
 		// ? Testing 'plus'
 		match XkbKeySet::from_string("plus".to_string()) {
 			Err(e) => {
-				println!("ERROR: {}", e);
+				error!("ERROR: {}", e);
 				assert!(false);
 			}
 			Ok(xkb_key_set) => {
@@ -271,7 +263,7 @@ mod tests {
 		// ? Testing 'Control_L' + 'a'
 		match XkbKeySet::from_string("Control_L+a".to_string()) {
 			Err(e) => {
-				println!("ERROR: {}", e);
+				error!("ERROR: {}", e);
 				assert!(false);
 			}
 			Ok(xkb_key_set) => {
@@ -285,7 +277,7 @@ mod tests {
 		// ? Testing 'Control_L' + 'Alt_L' + 'Delete'
 		match XkbKeySet::from_string("Control_L+Alt_L+Delete".to_string()) {
 			Err(e) => {
-				println!("ERROR: {}", e);
+				error!("ERROR: {}", e);
 				assert!(false);
 			}
 			Ok(xkb_key_set) => {

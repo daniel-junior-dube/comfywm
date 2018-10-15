@@ -14,6 +14,14 @@ These instructions will get you a copy of the project up and running on your loc
 
 What things you need to install the software and how to install them
 
+- Git (https://git-scm.com/)
+- Rust compiler and development tools (install using https://rustup.rs/)
+- cargo-make (https://sagiegurari.github.io/cargo-make/)
+	```
+	cargo install cargo-make
+	```
+
+- wlroots dependencies (https://github.com/swaywm/wlroots):
 ```
 meson
 wayland
@@ -40,7 +48,9 @@ x11-icccm (optional, for improved Xwayland introspection)
 xcb-xkb (optional, for improved keyboard handling on the X11 backend)
 ```
 
-### Developpment
+### Installing
+
+commands
 A step by step series of examples that tell you how to get a development env running
 
 **Arch Linux:**
