@@ -45,29 +45,18 @@ impl KeyboardHandler {
 		_: WLRKeyboardHandle,
 		key_event: &WLRKeyEvent,
 	) {
-		// TODO: DJDUBE - Clean this mess!
-		let key_set = XkbKeySet::from_vec_without_check(&key_event.pressed_keys());
-		let xkb_keysyms_set_option = match comfy_kernel.current_mode {
+		let xkb_keyset_option = match comfy_kernel.current_mode {
 			CompositorMode::NormalMode => None,
 			CompositorMode::SuperMode(ref mut super_mode_state) => {
-				super_mode_state.xkb_key_set.keysyms_set = super_mode_state
-					.xkb_key_set
-					.keysyms_set
-					.union(&key_set.keysyms_set)
-					.cloned()
-					.collect();
+				let key_set = XkbKeySet::from_vec_without_check(&key_event.pressed_keys());
+				super_mode_state.xkb_key_set.set_to_union(&key_set);
 				Some(super_mode_state.xkb_key_set.clone())
 			}
 		};
 
-		if let Some(xkb_keysyms_set) = xkb_keysyms_set_option {
-			debug!("super_mode_state.xkb_key_set.xkb_keysyms_set: {:?}", xkb_keysyms_set);
-			if comfy_kernel.available_commands.contains_key(&xkb_keysyms_set.clone()) {
-				let command = comfy_kernel
-					.available_commands
-					.get(&xkb_keysyms_set.clone())
-					.unwrap()
-					.clone();
+		if let Some(xkb_keyset) = xkb_keyset_option {
+			debug!("super_mode_state.xkb_key_set: {:?}", xkb_keyset);
+			if let Some(command) = comfy_kernel.command_for_keyset(&xkb_keyset) {
 				CommandInterpreter::execute(&command, comfy_kernel);
 			}
 		}
@@ -79,17 +68,12 @@ impl KeyboardHandler {
 		_keyboard: WLRKeyboardHandle,
 		key_event: &WLRKeyEvent,
 	) {
-		// TODO: DJDUBE - Clean this mess!
-		let key_set = XkbKeySet::from_vec_without_check(&key_event.pressed_keys());
 		match comfy_kernel.current_mode {
 			CompositorMode::NormalMode => {}
 			CompositorMode::SuperMode(ref mut super_mode_state) => {
-				super_mode_state.xkb_key_set.keysyms_set = super_mode_state
-					.xkb_key_set
-					.keysyms_set
-					.difference(&key_set.keysyms_set)
-					.cloned()
-					.collect();
+				// ? Interprets the pressed keys as a xkb_key_set
+				let key_set = XkbKeySet::from_vec_without_check(&key_event.pressed_keys());
+				super_mode_state.xkb_key_set.set_to_difference(&key_set);
 				debug!(
 					"super_mode_state.xkb_key_set.keysyms_set: {:?}",
 					super_mode_state.xkb_key_set.keysyms_set
@@ -113,6 +97,7 @@ impl WLRKeyboardHandler for KeyboardHandler {
 
 			@keyboard = {keyboard_handle};
 
+			// TODO: Should we prevent the notification of the mod key if super mode is engaged?
 			let mut modifiers = keyboard.get_modifier_masks();
 			seat.keyboard_notify_modifiers(&mut modifiers);
 			()
@@ -124,9 +109,7 @@ impl WLRKeyboardHandler for KeyboardHandler {
 			@compositor = {compositor};
 			let comfy_kernel: &mut ComfyKernel = compositor.into();
 
-			let seat_handle = comfy_kernel.seat_handle.clone().unwrap();
-			@seat = {seat_handle};
-
+			// ? Mode specific key handling
 			match comfy_kernel.current_mode {
 				CompositorMode::NormalMode => {
 					if key_event.key_state() == WLR_KEY_PRESSED {
@@ -135,13 +118,8 @@ impl WLRKeyboardHandler for KeyboardHandler {
 						self.handle_normal_mode_key_release(comfy_kernel, keyboard_handle, key_event);
 					}
 
-					// TODO: DJDUBE - Put this is a log file
-					debug!("Notifying seat of keypress: time_msec: '{:?}' keycode: '{}' key_state: '{}'", key_event.time_msec(), key_event.keycode(), key_event.key_state() as u32);
-					seat.keyboard_notify_key(
-						key_event.time_msec(),
-						key_event.keycode(),
-						key_event.key_state() as u32
-					);
+					// ? Send the key to the active window
+					comfy_kernel.keyboard_notify_key(key_event);
 				},
 				CompositorMode::SuperMode(_) => {
 					if key_event.key_state() == WLR_KEY_PRESSED {
@@ -202,11 +180,27 @@ impl XkbKeySet {
 	}
 
 	/// Use the provided vector of xkb key codes to build an XkbKeySet which contains a set of xkb keys (u32).
-	///
+	/// Doesn't check if the vec is empty or contains duplicates or invalid keysyms
 	pub fn from_vec_without_check(xkb_key_codes: &[u32]) -> XkbKeySet {
 		XkbKeySet {
 			keysyms_set: HashSet::from_iter(xkb_key_codes.iter().cloned()),
 		}
+	}
+
+	// Set the the keysyms_set as the difference of the current one with the provided one
+	pub fn set_to_difference(&mut self, key_set: &XkbKeySet) {
+		self.keysyms_set = self.keysyms_set
+				.difference(&key_set.keysyms_set)
+				.cloned()
+				.collect();
+	}
+
+	// Set the the keysyms_set as the difference of the current one with the provided one
+	pub fn set_to_union(&mut self, key_set: &XkbKeySet) {
+		self.keysyms_set = self.keysyms_set
+				.union(&key_set.keysyms_set)
+				.cloned()
+				.collect();
 	}
 }
 

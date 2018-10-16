@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use wlroots::xkbcommon::xkb::keysyms;
+use wlroots::key_events::KeyEvent as WLRKeyEvent;
 use wlroots::{
 	Capability, Compositor as WLRCompositor, CompositorBuilder as WLRCompositorBuilder, Cursor as WLRCursor,
 	CursorHandle as WLRCursorHandle, KeyboardHandle as WLRKeyboardHandle, OutputLayout as WLROutputLayout,
@@ -129,6 +130,7 @@ pub struct ComfyKernel {
 	pub available_commands: HashMap<XkbKeySet, Command>,
 }
 
+// TODO: handle main seat features like notifying keyboard/cursor events
 impl ComfyKernel {
 	pub fn new(
 		output_layout_handle: WLROutputLayoutHandle,
@@ -258,6 +260,31 @@ impl ComfyKernel {
 			).unwrap();
 			()
 		);
+	}
+
+	pub fn keyboard_notify_key(&self, key_event: &WLRKeyEvent) {
+		let seat_handle = self.seat_handle.clone().unwrap();
+		with_handles!([(seat: {seat_handle})] => {
+			debug!("Notifying seat of keypress: time_msec: '{:?}' keycode: '{}' key_state: '{}'", key_event.time_msec(), key_event.keycode(), key_event.key_state() as u32);
+			seat.keyboard_notify_key(
+				key_event.time_msec(),
+				key_event.keycode(),
+				key_event.key_state() as u32
+			);
+		}).unwrap();
+	}
+
+	pub fn command_for_keyset(&self, key_set: &XkbKeySet) -> Option<Command> {
+		if self.available_commands.contains_key(&key_set) {
+			let command = self
+				.available_commands
+				.get(&key_set)
+				.unwrap()
+				.clone();
+			Some(command)
+		} else {
+			None
+		}
 	}
 }
 
