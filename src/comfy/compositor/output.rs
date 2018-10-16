@@ -10,7 +10,7 @@ use wlroots::{
 use compositor::workspace::Workspace;
 use compositor::ComfyKernel;
 use layout::WindowData;
-use common::colors;
+use common::colors::Color;
 
 /*
 ..####...##..##..######..#####...##..##..######..#####....####...######...####..
@@ -34,7 +34,7 @@ impl OutputData {
 	pub fn new(area: Area) -> Self {
 		OutputData {
 			workspace: Workspace::new(area),
-			clear_color: colors::Bunker,
+			clear_color: Color::burgundy().as_rgba_slice(),
 		}
 	}
 
@@ -120,15 +120,15 @@ impl WLROutputHandler for OutputHandler {
 	}
 
 	/// Called every time the output mode changes.
+	/// Resizes the output_data's area
 	fn on_mode_change(&mut self, compositor_handle: WLRCompositorHandle, output_handle: WLROutputHandle) {
-		// TODO: Resize output layout with output size
 		dehandle!(
 			@compositor = {compositor_handle};
 			@output = {output_handle};
 			let comfy_kernel: &mut ComfyKernel = compositor.data.downcast_mut().unwrap();
 			let output_data_map = &mut comfy_kernel.output_data_map;
-			let (width, height) = output.size();
 			if let Some(output_data) = output_data_map.get_mut(&output.name()) {
+				let (width, height) = output.size();
 				output_data.update_area(
 					Area::new(
 						Origin::new(0, 0),
