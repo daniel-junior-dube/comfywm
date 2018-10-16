@@ -37,27 +37,7 @@ impl WLRXdgV6ShellManagerHandler for XdgV6ShellManagerHandler {
 		dehandle!(
 			@compositor = {compositor_handle};
 			let comfy_kernel: &mut ComfyKernel = compositor.into();
-			let seat = comfy_kernel.seat_handle.clone().unwrap();
-			let keyboard = comfy_kernel.keyboard_handle.clone().unwrap();
-			@seat = {seat};
-			@keyboard = {keyboard};
-			shell_handle.run(
-				|shell| {
-					shell.ping();
-					let surface = shell.surface();
-					surface.run(|surface| {
-						if let Some(&mut WLRXdgV6ShellState::TopLevel(ref mut toplevel)) = shell.state() {
-							toplevel.set_activated(true);
-						}
-						seat.set_keyboard(keyboard.input_device());
-						seat.keyboard_notify_enter(
-							surface,
-							&mut keyboard.keycodes(),
-							&mut keyboard.get_modifier_masks()
-						);
-					}).unwrap();
-				}
-			).unwrap();
+			comfy_kernel.set_activated(&shell_handle);
 			comfy_kernel.add_window_to_active_workspace(shell_handle);
 			()
 		);

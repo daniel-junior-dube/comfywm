@@ -110,9 +110,7 @@ impl WLROutputHandler for OutputHandler {
 				with_handles!([(output_layout: {output_layout_handle})] => {
 					// TODO: If window_layout area doesn't intersect the output, refresh the layout
 					let render_box = workspace.window_layout.render_box().unwrap();
-					println!("Render_box: {:?}", render_box);
 					let output_layout_box = output_layout.get_box(None);
-					println!("output_layout_box: {:?}", output_layout_box);
 				}).unwrap();
 			}
 		}).unwrap()
@@ -127,14 +125,14 @@ impl WLROutputHandler for OutputHandler {
 			let comfy_kernel: &mut ComfyKernel = compositor.data.downcast_mut().unwrap();
 			let output_data_map = &mut comfy_kernel.output_data_map;
 			let (width, height) = output.size();
-			let output_data = output_data_map.get_mut(&output.name()).unwrap();
-			output_data.update_area(
-				Area::new(
-					Origin::new(0, 0),
-					Size::new(width, height)
-				)
-			);
-			()
+			if let Some(output_data) = output_data_map.get_mut(&output.name()) {
+				output_data.update_area(
+					Area::new(
+						Origin::new(0, 0),
+						Size::new(width, height)
+					)
+				);
+			}
 		);
 	}
 
