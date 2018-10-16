@@ -192,44 +192,45 @@ impl ComfyKernel {
 		}
 	}
 
-	pub fn add_window_to_active_workspace(&mut self, shell_handle: WLRXdgV6ShellSurfaceHandle) {
-		let active_output_name = self.active_output_name.clone();
+	pub fn schedule_frame_for_output(&self, output_name: &str) {
 		let output_layout_handle = self.output_layout_handle.clone();
-
 		with_handles!([(layout: {output_layout_handle})] => {
-			if let Some(OutputData {workspace, ..}) = self.output_data_map.get_mut(&active_output_name) {
-				workspace.add_window(shell_handle);
-			}
-
-			for (mut output_handle, _) in layout.outputs() {
+			let mut found = false;
+			layout.outputs().iter_mut().any(|(ref mut output_handle, _)| {
 				with_handles!([(output: {output_handle})] => {
-					output.schedule_frame()
+					if output.name() == output_name {
+						output.schedule_frame();
+						found = true;
+					}
 				}).unwrap();
-			}
+				found
+			});
 		}).unwrap();
 	}
 
-	pub fn find_and_remove_window(&mut self, shell_handle: WLRXdgV6ShellSurfaceHandle) {
-		let output_layout_handle = self.output_layout_handle.clone();
+	pub fn add_window_to_active_workspace(&mut self, shell_handle: WLRXdgV6ShellSurfaceHandle) {
+		if let Some(OutputData {workspace, ..}) = self.output_data_map.get_mut(&self.active_output_name) {
+			workspace.add_window(shell_handle);
+		}
+		self.schedule_frame_for_output(&self.active_output_name);
+	}
 
-		with_handles!([(_output_layout: {output_layout_handle})] => {
-			// TODO: Use output_layout to find output name, which can be used to get the appropriate output
-			let mut fallback_shell_handle_option = None;
-			for output_data in self.output_data_map.values_mut() {
-				if output_data.workspace.contains_window(&shell_handle) {
-					fallback_shell_handle_option = output_data.workspace.remove_window(&shell_handle);
-				}
+	pub fn find_and_remove_window(&mut self, shell_handle: WLRXdgV6ShellSurfaceHandle) {
+		let mut fallback_shell_handle_option = None;
+		let mut name_of_container_output = None;
+		for (output_name, output_data) in self.output_data_map.iter_mut() {
+			if output_data.workspace.contains_window(&shell_handle) {
+				fallback_shell_handle_option = output_data.workspace.remove_window(&shell_handle);
+				name_of_container_output = Some(output_name.clone());
+				break;
 			}
-			if let Some(fallback_shell_handle) = fallback_shell_handle_option {
-				self.set_activated(&fallback_shell_handle);
-			}
-			/*
-			for (mut output_handle, _) in layout.outputs() {
-				with_handles!([(output: {output_handle})] => {
-					output.schedule_frame()
-				}).unwrap();
-			} */
-		}).unwrap();
+		}
+		if let Some(fallback_shell_handle) = fallback_shell_handle_option {
+			self.set_activated(&fallback_shell_handle);
+		}
+		if let Some(output_name) = name_of_container_output {
+			self.schedule_frame_for_output(&output_name)
+		}
 	}
 
 	pub fn set_activated(&mut self, shell_handle: &WLRXdgV6ShellSurfaceHandle) {

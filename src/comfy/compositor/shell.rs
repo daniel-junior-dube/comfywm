@@ -19,7 +19,6 @@ use compositor::ComfyKernel;
 pub struct XdgV6ShellHandler;
 impl WLRXdgV6ShellHandler for XdgV6ShellHandler {
 	fn destroyed(&mut self, compositor: WLRCompositorHandle, shell_handle: WLRXdgV6ShellSurfaceHandle) {
-		println!("Call to remove window");
 		with_handles!([(compositor: {compositor})] => {
 			let comfy_kernel: &mut ComfyKernel = compositor.into();
 			comfy_kernel.find_and_remove_window(shell_handle);

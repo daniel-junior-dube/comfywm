@@ -1,7 +1,6 @@
 use wlroots::{Area, XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle};
 
 use layout::Layout;
-use compositor::ComfyKernel;
 
 /*
 .##...##...####...#####...##..##...####...#####....####....####...######.

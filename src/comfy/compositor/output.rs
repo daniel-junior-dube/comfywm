@@ -10,6 +10,7 @@ use wlroots::{
 use compositor::workspace::Workspace;
 use compositor::ComfyKernel;
 use layout::WindowData;
+use common::colors;
 
 /*
 ..####...##..##..######..#####...##..##..######..#####....####...######...####..
@@ -22,6 +23,7 @@ use layout::WindowData;
 
 pub struct OutputData {
 	pub workspace: Workspace,
+	pub clear_color: [f32; 4],
 }
 
 impl OutputData {
@@ -32,6 +34,7 @@ impl OutputData {
 	pub fn new(area: Area) -> Self {
 		OutputData {
 			workspace: Workspace::new(area),
+			clear_color: colors::Bunker,
 		}
 	}
 
@@ -90,10 +93,10 @@ impl WLROutputHandler for OutputHandler {
 				.as_mut()
 				.expect("Compositor was not loaded with a renderer");
 			let mut render_context = renderer.render(output, None);
-			render_context.clear([135.0/255.0, 7.0/255.0, 52.0/255.0, 1.0]);
 
 			// ? Render the windows from the workspace's layout
-			if let Some(OutputData {workspace, ..}) = comfy_kernel.output_data_map.get(&output_name) {
+			if let Some(OutputData {workspace, clear_color, ..}) = comfy_kernel.output_data_map.get(&output_name) {
+				render_context.clear(*clear_color);
 				for window in workspace.window_layout.windows_data() {
 					self.render_window(&window, &mut render_context);
 				}
