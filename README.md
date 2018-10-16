@@ -14,27 +14,102 @@ These instructions will get you a copy of the project up and running on your loc
 
 What things you need to install the software and how to install them
 
+- Git (https://git-scm.com/)
+- Rust compiler and development tools (install using https://rustup.rs/)
+- cargo-make (https://sagiegurari.github.io/cargo-make/)
+	```
+	cargo install cargo-make
+	```
+
+- wlroots dependencies (https://github.com/swaywm/wlroots):
 ```
-Give examples
+meson
+wayland
+wayland-protocols
+EGL
+GLESv2
+libdrm
+GBM
+libinput
+xkbcommon
+udev
+pixman
+systemd (optional, for logind support)
+elogind (optional, for logind support on systems without systemd)
+libcap (optional, for capability support)
+xcb
+xcb-composite
+xcb-xfixes
+xcb-image
+xcb-render
+x11-xcb
+xcb-errors (optional, for improved error reporting)
+x11-icccm (optional, for improved Xwayland introspection)
+xcb-xkb (optional, for improved keyboard handling on the X11 backend)
 ```
 
 ### Installing
 
+commands
 A step by step series of examples that tell you how to get a development env running
 
-Say what the step will be
-
-```
-Give the example
-```
-
-And repeat
-
-```
-until finished
+**Arch Linux:**
+```bash
+...
 ```
 
-End with an example of getting some data out of the system or using it for a little demo
+**Ubuntu:**
+```bash
+...
+```
+
+**Debian:**
+```bash
+...
+```
+
+**Using Cargo:**
+```bash
+# Pull and update the git submodules
+git submodule update --init --recursive
+
+# Build the application
+cargo build
+
+# If the build was successfull, call the install command
+cargo install
+```
+
+### Installation
+
+A step by step series of examples that tell you how to install Comfywm on your system
+
+**Arch Linux:**
+```bash
+...
+```
+
+**Ubuntu:**
+```bash
+...
+```
+
+**Debian:**
+```bash
+...
+```
+
+**Using Cargo:**
+```bash
+# Pull and update the git submodules
+git submodule update --init --recursive
+
+# Build the application
+cargo build
+
+# If the build was successfull, call the install command
+cargo install
+```
 
 ## Running the tests
 
@@ -52,19 +127,10 @@ cargo test
 cargo test <name of the test>
 ```
 
-## Deployment
-
-Add additional notes about how to deploy this on a live system
-
-### Using Cargo
-
-```
-cargo install comfywm
-```
-
 ### Built With
 
 * [Rust](https://www.rust-lang.org) - System programming language
+* [wlroots](https://github.com/swaywm/wlroots) - A modular Wayland compositor library.
 * [wlroots-rs](https://github.com/swaywm/wlroots-rs) - Safe Rust bindings for wlroots.
 
 ## Contributing
