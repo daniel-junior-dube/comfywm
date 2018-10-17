@@ -43,7 +43,6 @@ use config::Config;
 */
 
 fn main() {
-	let config = Config::load().unwrap();
 	wlr_init_logging(WLR_DEBUG, None);
 	let compositor = generate_default_compositor();
 	compositor.run()
