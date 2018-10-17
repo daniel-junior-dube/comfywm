@@ -7,7 +7,7 @@
 ..........................................................................................
 */
 
-#[derive(Clone)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CommandType {
 	Terminate,
 	Exec,
@@ -30,7 +30,7 @@ impl CommandType {
 			"move_active_window_right" => Ok(CommandType::MoveActiveWindowRight),
 			"move_focus_to_next_window" => Ok(CommandType::MoveFocusToNextWindow),
 			"move_focus_to_previous_window" => Ok(CommandType::MoveFocusToPreviousWindow),
-			_ => Err(format!("The command type \"{}\" is invalid.", value)),
+			_ => Err(format!("The command type {} is invalid.", value)),
 		}
 	}
 
