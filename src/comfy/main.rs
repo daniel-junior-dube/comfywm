@@ -22,6 +22,9 @@ extern crate serde;
 extern crate toml;
 #[macro_use]
 extern crate serde_derive;
+#[macro_use]
+extern crate log;
+extern crate env_logger;
 
 use wlroots::utils::{init_logging as wlr_init_logging, WLR_DEBUG};
 
@@ -30,7 +33,6 @@ mod config;
 mod input;
 
 use compositor::generate_default_compositor;
-use config::Config;
 
 /*
 .##.....##....###....####.##....##
@@ -43,6 +45,7 @@ use config::Config;
 */
 
 fn main() {
+	env_logger::init();
 	wlr_init_logging(WLR_DEBUG, None);
 	let compositor = generate_default_compositor();
 	compositor.run()
