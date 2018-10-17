@@ -13,8 +13,8 @@ use common::command_type::CommandType;
 
 #[derive(Clone)]
 pub struct Command {
-	command_type: CommandType,
-	args: Vec<String>,
+	pub command_type: CommandType,
+	pub args: Vec<String>,
 }
 
 impl Command {
