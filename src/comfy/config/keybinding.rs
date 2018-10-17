@@ -1,10 +1,10 @@
 use compositor::commands::Command;
+use config::parser::convert_to_xkb_string;
 use input::keyboard::XkbKeySet;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;
 use toml;
-use config::parser::convert_to_xkb_string;
 
 /// An intermediate struct used to parse a Toml file
 #[derive(Deserialize, Debug)]
@@ -27,7 +27,9 @@ impl Keybindings {
 	pub fn load(mut config_file: File) -> Result<Self, String> {
 		let mut file_content = String::new();
 
-		config_file.read_to_string(&mut file_content).expect("Error reading file keybindings config file");
+		config_file
+			.read_to_string(&mut file_content)
+			.expect("Error reading file keybindings config file");
 		Keybindings::parse_config_from_toml(&file_content)
 	}
 
@@ -41,13 +43,13 @@ impl Keybindings {
 
 		let parsed_content = match toml::from_str::<TomlKeybindings>(file_content) {
 			Ok(ref content) if content.keybindings.is_empty() => {
-					return Err("No bindings specified for the keybindings file".to_string());
-			},
+				return Err("No bindings specified for the keybindings file".to_string());
+			}
 			Ok(ref content) if content.modkey.is_empty() => {
-					return Err("No modkey specified for the keybindings file".to_string());
-			},
+				return Err("No modkey specified for the keybindings file".to_string());
+			}
 			Ok(content) => content,
-			Err(e) => return Err(format!("Error parsing the toml content: {}", e))
+			Err(e) => return Err(format!("Error parsing the toml content: {}", e)),
 		};
 
 		let modkey_str = &parsed_content.modkey;

@@ -2,9 +2,8 @@ pub mod keybinding;
 pub mod parser;
 
 use self::keybinding::Keybindings;
-use std::fs::File;
 use std::env::var;
-use std::path::Path;
+use std::fs::File;
 
 const SYSTEM_DEFAULT_KEYBINDINGS: &str = "/etc/comfywm/keybindings.toml";
 const USER_KEYBINDINGS: &str = "/.config/comfywm/keybindings.toml";
@@ -20,37 +19,35 @@ impl Config {
 	pub fn load() -> Result<Config, String> {
 		let keybindings = if var("HOME").is_ok() {
 			match File::open(format!("{}{}", var("HOME").unwrap(), USER_KEYBINDINGS)) {
-						Ok(user_config_file) => {
-							match Keybindings::load(user_config_file) {
-								Ok(keybinding) => keybinding,
-								Err(_) => {
-									// TODO: log warn error in user config
-									load_system_default_keybindings()
-								}
-							}
-						},
+				Ok(user_config_file) => {
+					match Keybindings::load(user_config_file) {
+						Ok(keybinding) => keybinding,
 						Err(_) => {
-							// TODO: log info using system's defaults
+							// TODO: log warn error in user config
 							load_system_default_keybindings()
 						}
+					}
+				}
+				Err(_) => {
+					// TODO: log info using system's defaults
+					load_system_default_keybindings()
+				}
 			}
 		} else {
 			load_system_default_keybindings()
 		};
 
 		Ok(Config {
-			keybindings: keybindings
+			keybindings: keybindings,
 		})
 	}
 }
 
 fn load_system_default_keybindings() -> Keybindings {
-	let system_default_keybindings = File::open(SYSTEM_DEFAULT_KEYBINDINGS)
-		.expect("Fatal error: Could open keybindings config!");
-	Keybindings::load(system_default_keybindings)
-		.expect("Fatal error: could not load any keybindings config files!")
+	let system_default_keybindings =
+		File::open(SYSTEM_DEFAULT_KEYBINDINGS).expect("Fatal error: Could open keybindings config!");
+	Keybindings::load(system_default_keybindings).expect("Fatal error: could not load any keybindings config files!")
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -72,17 +69,20 @@ mod tests {
 					"Control_R+Shift_R+Up",
 					"Control_R+Shift_L+Up",
 					"Control_L+Shift_R+Up",
-					"Control_L+Shift_L+Up"];
+					"Control_L+Shift_L+Up",
+				];
 				let expected_command_type = CommandType::Exec;
 				let expected_command_args = vec!["weston-terminal".to_string()];
 				for binding in expected_bindings.iter() {
 					let xkb_keyset = XkbKeySet::from_str(binding).unwrap();
-					let command: &Command = keybinding.bindings.get(&xkb_keyset)
+					let command: &Command = keybinding
+						.bindings
+						.get(&xkb_keyset)
 						.expect(&format!("The command {} should exist", binding));
 					assert_eq!(command.command_type, expected_command_type);
 					assert_eq!(command.args, expected_command_args);
 				}
-			},
+			}
 			Err(e) => {
 				panic!(e);
 			}
