@@ -43,6 +43,31 @@ env = { RUST_LOG = "comfy=debug" }
 command = "cargo"
 args = ["run"]
 
+#.#####...##..##..######..##......#####..
+#.##..##..##..##....##....##......##..##.
+#.#####...##..##....##....##......##..##.
+#.##..##..##..##....##....##......##..##.
+#.#####....####...######..######..#####..
+#........................................
+
+# Builds the release version of the binary
+[tasks.build-release]
+command = "cargo"
+args = ["build", "--release"]
+
+# Set or update the desktop entry
+[tasks.update-desktop-entry]
+command = "cp"
+args = ["./data/comfy.desktop", "/usr/share/wayland-sessions/"]
+
+# Set or update the desktop entry
+[tasks.build-release-and-copy-to-bin]
+command = "cp"
+args = ["./target/release/comfywm", "/bin/comfywm"]
+dependencies = [
+	"build-release"
+]
+
 #.######..##..##...####...######...####...##......##.....
 #...##....###.##..##........##....##..##..##......##.....
 #...##....##.###...####.....##....######..##......##.....
@@ -53,7 +78,11 @@ args = ["run"]
 # Builds and installs the comfy window manager on the local system
 [tasks.install]
 command = "echo"
-args = ["TODO!"]
+args = ["All done!"]
+dependencies = [
+	"build-release-and-copy-to-bin",
+	"update-desktop-entry",
+]
 
 #.#####...######..#####...##.......####...##..##.
 #.##..##..##......##..##..##......##..##...####..

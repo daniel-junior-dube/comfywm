@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Comfy
+Comment=This session logs you into Comfy
+Exec=comfywm
+TryExec=comfywm
+Type=Application
+DesktopNames=COMFY

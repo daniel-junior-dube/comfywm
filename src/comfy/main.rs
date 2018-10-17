@@ -22,6 +22,8 @@ extern crate libc;
 extern crate log;
 extern crate env_logger;
 
+use std::env;
+
 use wlroots::utils::{init_logging as wlr_init_logging, WLR_DEBUG};
 
 mod compositor;
@@ -41,6 +43,8 @@ use compositor::generate_default_compositor;
 */
 
 fn main() {
+	// ? WIP: Required for x application to start, will be dynamically set if we wish to keep xwayland
+	env::set_var("DISPLAY", ":0");
 	env_logger::init();
 	wlr_init_logging(WLR_DEBUG, None);
 	let compositor = generate_default_compositor();

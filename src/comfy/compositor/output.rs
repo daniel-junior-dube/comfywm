@@ -104,6 +104,7 @@ impl WLROutputHandler for OutputHandler {
 		}).unwrap()
 	}
 
+	/// WIP
 	fn on_transform(&mut self, compositor_handle: WLRCompositorHandle, output_handle: WLROutputHandle) {
 		with_handles!([(compositor: {compositor_handle}), (output: {output_handle})] => {
 			let output_name = output.name().clone();
@@ -128,10 +129,11 @@ impl WLROutputHandler for OutputHandler {
 			let comfy_kernel: &mut ComfyKernel = compositor.data.downcast_mut().unwrap();
 			let output_data_map = &mut comfy_kernel.output_data_map;
 			if let Some(output_data) = output_data_map.get_mut(&output.name()) {
-				let (width, height) = output.size();
+				let (x, y) = output.layout_space_pos();
+				let (width, height) = output.effective_resolution();
 				output_data.update_area(
 					Area::new(
-						Origin::new(0, 0),
+						Origin::new(x, y),
 						Size::new(width, height)
 					)
 				);
@@ -210,9 +212,16 @@ impl WLROutputManagerHandler for OutputManagerHandler {
 			cursor.warp(None, x, y);
 
 			println!("New output detected, named: {}", output.name());
+			let (x, y) = output.layout_space_pos();
+			let (width, height) = output.effective_resolution();
 			output_data_map.insert(
 				output.name(),
-				OutputData::new_empty()
+				OutputData::new(
+					Area::new(
+						Origin::new(x, y),
+						Size::new(width, height)
+					)
+				)
 			);
 			()
 		);

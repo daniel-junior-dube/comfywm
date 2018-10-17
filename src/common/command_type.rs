@@ -7,7 +7,7 @@
 ..........................................................................................
 */
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum CommandType {
 	Terminate,
 	Exec,
