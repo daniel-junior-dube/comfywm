@@ -188,10 +188,10 @@ impl XkbKeySet {
 		for keysym_name in key_set_string.split("+") {
 			let key = keysym_from_name(keysym_name, KEYSYM_NO_FLAGS);
 			if key == 0 {
-				return Err(format!("Encounted unknown keysym: {}", keysym_name));
+				return Err(format!("Encountered unknown keysym: {}", keysym_name));
 			}
 			if extracted_keysyms.contains(&key) {
-				return Err(format!("Encounted duplicate keysym: {}", keysym_name));
+				return Err(format!("Encountered duplicate keysym: {}", keysym_name));
 			}
 			extracted_keysyms.insert(key);
 		}
