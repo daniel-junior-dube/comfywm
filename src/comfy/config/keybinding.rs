@@ -1,13 +1,12 @@
-use common::command_type::CommandType;
 use compositor::commands::Command;
 use input::keyboard::XkbKeySet;
-use serde_derive;
 use std::collections::HashMap;
 use std::fs::File;
 use std::io::prelude::*;
 use toml;
 use config::parser::convert_to_xkb_string;
 
+/// An intermediate struct used to parse a Toml file
 #[derive(Deserialize, Debug)]
 struct TomlKeybindings {
 	modkey: String,
@@ -15,7 +14,7 @@ struct TomlKeybindings {
 }
 
 pub struct Keybindings {
-	bindings: HashMap<XkbKeySet, Command>,
+	pub bindings: HashMap<XkbKeySet, Command>,
 }
 
 impl Keybindings {
@@ -25,14 +24,31 @@ impl Keybindings {
 		}
 	}
 
-	pub fn load(path: String) -> Result<Self, String> {
-		let mut keybindings = Keybindings::new();
-		let mut config_file = File::open(path.clone()).unwrap();
+	pub fn load(mut config_file: File) -> Result<Self, String> {
 		let mut file_content = String::new();
 
-		config_file.read_to_string(&mut file_content).unwrap();
+		config_file.read_to_string(&mut file_content).expect("Error reading file keybindings config file");
+		Keybindings::parse_config_from_toml(&file_content)
+	}
 
-		let parsed_content: TomlKeybindings = toml::from_str(&file_content).expect(&format!("Error in the file {}", path));
+	/// Loads the config file from a specific path and converts it to Comfy's `Keybindings` object.
+	///
+	/// #Errors
+	/// Will crash if a `Keybinding` is the same as the `Modkey`.
+	/// Will crash if a `Keybinding` is not a valid `XkbKeySet`.
+	pub fn parse_config_from_toml(file_content: &str) -> Result<Self, String> {
+		let mut keybindings = Keybindings::new();
+
+		let parsed_content = match toml::from_str::<TomlKeybindings>(file_content) {
+			Ok(ref content) if content.keybindings.is_empty() => {
+					return Err("No bindings specified for the keybindings file".to_string());
+			},
+			Ok(ref content) if content.modkey.is_empty() => {
+					return Err("No modkey specified for the keybindings file".to_string());
+			},
+			Ok(content) => content,
+			Err(e) => return Err(format!("Error parsing the toml content: {}", e))
+		};
 
 		let modkey_str = &parsed_content.modkey;
 		let modkey_keyset_strs = convert_to_xkb_string(modkey_str, modkey_str)?;
@@ -42,9 +58,12 @@ impl Keybindings {
 
 			for xkb_keyset_str in xkb_keysets_strs.iter() {
 				if modkey_keyset_strs.contains(xkb_keyset_str) {
-					return Err(format!("Command set to modkey! \"{} = {}\"", keys_str, command_str));
+					return Err(format!("Command set to modkey! {} = {}", keys_str, command_str));
 				} else {
 					let xkb_keyset = XkbKeySet::from_str(xkb_keyset_str).unwrap();
+					if command_str.is_empty() {
+						return Err(format!("The command associated with {} is empty", &keys_str));
+					}
 					let command = Command::from_str(command_str)?;
 					keybindings.bindings.insert(xkb_keyset, command);
 				}

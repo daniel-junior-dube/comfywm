@@ -1,6 +1,9 @@
 use input::keyboard::XkbKeySet;
 
+/// Convert a keyset in Comfy's format and convert it to a valid XkbKeySet
 pub fn convert_to_xkb_string(modkey_str: &str, keyset: &str) -> Result<Vec<String>, String> {
+
+    // Replace all the $mod in the file with the value of modkey
     let splitted_keyset: Vec<&str> = keyset.split("+").map(|key| {
         if key == "$mod" {
             return modkey_str;
@@ -10,37 +13,47 @@ pub fn convert_to_xkb_string(modkey_str: &str, keyset: &str) -> Result<Vec<Strin
     }).collect();
 
     let mut cannonicalized_keys: Vec<Vec<String>> = Vec::new();
-
     for key in splitted_keyset.iter() {
-        cannonicalized_keys.push(cannonicalize_key(key)?)
+        cannonicalized_keys.push(canonicalize_key(key)?)
     }
 
-    Ok(create_combinations_as_string(cannonicalized_keys))
+    // Return all the possible combinations of valid XkbKeySet as a multiple Strings
+    let memes = create_combinations_as_string(cannonicalized_keys);
+    Ok(memes)
 }
 
+/// A recursive function that take multiple keys and return all the possible combinations within them.
+///
+/// #Example
+/// The following value : `[["Control_L", "Control_R"], ["Shift_L", "Shift_R"], ["Up"]]`
+/// returns : ```["Control_R+Shift_R+Up",
+///               "Control_R+Shift_L+Up",
+///               "Control_L+Shift_R+Up",
+///               "Control_L+Shift_L+Up"]```
 fn create_combinations_as_string(keys: Vec<Vec<String>>) -> Vec<String> {
     let mut combinations: Vec<String> = Vec::new();
-    let mut first_keys = keys;
-    let key_remainder = first_keys.split_off(1);
 
-    let mut first_keys = first_keys.pop().unwrap();
-    let mut initial_keys: Vec<String> = Vec::new();
+    // Split the keys in two groups
+    // Ex: [["Control_L", "Control_R"], ["Shift_L", "Shift_R"], ["Up"]] =>
+    // key_head_group = ["Control_L", "Control_R"]
+    // key_tail_group = [["Shift_L", "Shift_R"], ["Up"]]
+    let mut key_head_group = keys;
+    let key_tail_group = key_head_group.split_off(1);
 
-    initial_keys.push(first_keys.pop().unwrap());
-    if first_keys.len() == 1 {
-        initial_keys.push(first_keys.pop().unwrap());
-    }
+    // Take the key_head_group and flatten it into a vector.
+    let prefix_keys: Vec<String> = key_head_group.into_iter().flatten().collect();
 
-    if key_remainder.len() == 0 {
-        return initial_keys;
+    // Base case: return the prefix if the remainder is empty.
+    if key_tail_group.len() == 0 {
+        return prefix_keys;
     } else {
-        let remainder_key_combinations: Vec<String> = create_combinations_as_string(key_remainder);
-        for inital_key in initial_keys.iter() {
+        // Recursive step: call the function it self with the remainder until it is empty.
+        let remainder_key_combinations: Vec<String> = create_combinations_as_string(key_tail_group);
+
+        // Create the combinations themselves with all the prefix key and the recursive calls.
+        for inital_key in prefix_keys.iter() {
             for key in remainder_key_combinations.iter() {
-                let mut key_combination: Vec<String> = Vec::new();
-                key_combination.push(inital_key.clone());
-                key_combination.push((*key).clone());
-                combinations.push(key_combination.join("+"));
+                combinations.push(vec![inital_key.clone(), key.clone()].join("+"));
             }
         }
     }
@@ -48,25 +61,24 @@ fn create_combinations_as_string(keys: Vec<Vec<String>>) -> Vec<String> {
     combinations
 }
 
-fn cannonicalize_key(key: &str) -> Result<Vec<String>, String> {
-    let mut keys: Vec<String> = Vec::new();
+/// Convert a Comfy's modifier class into a valid XkbKeySet if it needs to.
+fn canonicalize_key(key: &str) -> Result<Vec<String>, String> {
     match key {
         "Control" => {
-            keys.push("Control_L".to_string());
-            keys.push("Control_R".to_string());
+            Ok(vec!["Control_L".to_string(),
+                    "Control_R".to_string()])
         },
         "Alt" => {
-            keys.push("Alt_L".to_string());
-            keys.push("Alt_R".to_string());
+            Ok(vec!["Alt_L".to_string(),
+                    "Alt_R".to_string()])
         },
         "Shift" => {
-            keys.push("Shift_L".to_string());
-            keys.push("Shift_R".to_string());
+            Ok(vec!["Shift_L".to_string(),
+                    "Shift_R".to_string()])
         },
         _ => {
             XkbKeySet::from_str(key)?;
-            keys.push(key.to_string());
+            Ok(vec![key.to_string()])
         }
-    };
-    Ok(keys)
+    }
 }
