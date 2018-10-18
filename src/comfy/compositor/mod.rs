@@ -1,6 +1,3 @@
-use std::collections::HashMap;
-
-use wlroots::xkbcommon::xkb::keysyms;
 use wlroots::{
 	Capability, Compositor as WLRCompositor, CompositorBuilder as WLRCompositorBuilder, Cursor as WLRCursor,
 	CursorHandle as WLRCursorHandle, KeyboardHandle as WLRKeyboardHandle, OutputLayout as WLROutputLayout,
@@ -13,14 +10,13 @@ pub mod output;
 pub mod shell;
 pub mod surface;
 
-use self::commands::Command;
 use self::output::{OutputLayoutHandler, OutputManagerHandler};
 use self::shell::XdgV6ShellManagerHandler;
-use common::command_type::CommandType;
 use input::cursor::CursorHandler;
 use input::keyboard::XkbKeySet;
 use input::seat::SeatHandler;
 use input::InputManagerHandler;
+use config::Config;
 
 /*
 ..####....####...##...##..#####....####....####...######..######...####...#####..
@@ -114,8 +110,7 @@ pub struct ComfyKernel {
 	pub current_mode: CompositorMode,
 	pub x: i32,
 	pub y: i32,
-	pub super_mode_xkb_key: u32,
-	pub available_commands: HashMap<XkbKeySet, Command>,
+	pub config: Config,
 }
 
 impl ComfyKernel {
@@ -124,38 +119,6 @@ impl ComfyKernel {
 		xcursor_manager: WLRXCursorManager,
 		cursor_handle: WLRCursorHandle,
 	) -> Self {
-		let mut available_commands = HashMap::<XkbKeySet, Command>::new();
-
-		available_commands.insert(
-			XkbKeySet::from_str("1").unwrap(),
-			Command::new_with_args(CommandType::Exec, vec!["weston-terminal".to_string()]),
-		);
-
-		available_commands.insert(
-			XkbKeySet::from_str("Escape").unwrap(),
-			Command::new(CommandType::Terminate),
-		);
-
-		available_commands.insert(
-			XkbKeySet::from_str("w").unwrap(),
-			Command::new(CommandType::MoveActiveWindowUp),
-		);
-
-		available_commands.insert(
-			XkbKeySet::from_str("s").unwrap(),
-			Command::new(CommandType::MoveActiveWindowDown),
-		);
-
-		available_commands.insert(
-			XkbKeySet::from_str("a").unwrap(),
-			Command::new(CommandType::MoveActiveWindowLeft),
-		);
-
-		available_commands.insert(
-			XkbKeySet::from_str("d").unwrap(),
-			Command::new(CommandType::MoveActiveWindowRight),
-		);
-
 		ComfyKernel {
 			xcursor_manager,
 			cursor_handle,
@@ -166,8 +129,7 @@ impl ComfyKernel {
 			current_mode: CompositorMode::NormalMode,
 			x: 0,
 			y: 0,
-			super_mode_xkb_key: keysyms::KEY_Control_R,
-			available_commands: available_commands,
+			config: Config::load(),
 		}
 	}
 }

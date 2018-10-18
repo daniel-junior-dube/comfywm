@@ -16,20 +16,25 @@ pub struct Config {
 }
 
 impl Config {
-	pub fn load() -> Result<Config, String> {
+	/// Returns a Comfy's config object. At first it tries to load the user's config in `"$HOME/.config/comfywm/"`. If
+	/// it fails to parse it or the file is not there, it loads the system defaults situated in `/etc/comfywm/`. If that
+	/// fails once again Comfy cannot start because it is not properly installed.
+	pub fn load() -> Config {
 		let keybindings = if var("HOME").is_ok() {
 			match File::open(format!("{}{}", var("HOME").unwrap(), USER_KEYBINDINGS)) {
 				Ok(user_config_file) => {
 					match Keybindings::load(user_config_file) {
-						Ok(keybinding) => keybinding,
-						Err(_) => {
-							// TODO: log warn error in user config
+						Ok(keybinding) => {
+							info!("Loading user's keybinding configuration");
+							keybinding
+						},
+						Err(e) => {
+							warn!("The user keybinding configuration contained error(s): {}", e);
 							load_system_default_keybindings()
 						}
 					}
 				}
 				Err(_) => {
-					// TODO: log info using system's defaults
 					load_system_default_keybindings()
 				}
 			}
@@ -37,13 +42,14 @@ impl Config {
 			load_system_default_keybindings()
 		};
 
-		Ok(Config {
+		Config {
 			keybindings: keybindings,
-		})
+		}
 	}
 }
 
 fn load_system_default_keybindings() -> Keybindings {
+	info!("Loading system default keybinding configuration");
 	let system_default_keybindings =
 		File::open(SYSTEM_DEFAULT_KEYBINDINGS).expect("Fatal error: Could open keybindings config!");
 	Keybindings::load(system_default_keybindings).expect("Fatal error: could not load any keybindings config files!")
@@ -71,8 +77,14 @@ mod tests {
 					"Control_L+Shift_R+Up",
 					"Control_L+Shift_L+Up",
 				];
+				let expected_modkeys : Vec<&str> = vec!["Control_R", "Control_L"];
 				let expected_command_type = CommandType::Exec;
 				let expected_command_args = vec!["weston-terminal".to_string()];
+
+				for modkey_str in expected_modkeys.iter() {
+					assert!(keybinding.modkey.contains(&XkbKeySet::from_str(modkey_str).unwrap()))
+				}
+
 				for binding in expected_bindings.iter() {
 					let xkb_keyset = XkbKeySet::from_str(binding).unwrap();
 					let command: &Command = keybinding
@@ -102,9 +114,14 @@ mod tests {
 			[keybindings]
 			"$mod+Shift+Up" = "exec weston-terminal"
 			"#;
+		let invalid_modkey_keyset_2 = r#"modkey = "Control+Down"
+			[keybindings]
+			"$mod+Shift+Up" = "exec weston-terminal"
+			"#;
 		assert!(Keybindings::parse_config_from_toml(empty_modkey).is_err());
 		assert!(Keybindings::parse_config_from_toml(no_modkey).is_err());
 		assert!(Keybindings::parse_config_from_toml(invalid_modkey_keyset).is_err());
+		assert!(Keybindings::parse_config_from_toml(invalid_modkey_keyset_2).is_err());
 	}
 
 	#[test]

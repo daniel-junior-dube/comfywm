@@ -19,8 +19,7 @@ pub fn convert_to_xkb_string(modkey_str: &str, keyset: &str) -> Result<Vec<Strin
 	}
 
 	// Return all the possible combinations of valid XkbKeySet as a multiple Strings
-	let memes = create_combinations_as_string(cannonicalized_keys);
-	Ok(memes)
+	Ok(create_combinations_as_string(cannonicalized_keys))
 }
 
 /// A recursive function that take multiple keys and return all the possible combinations within them.

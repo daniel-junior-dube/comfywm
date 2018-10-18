@@ -31,7 +31,7 @@ impl KeyboardHandler {
 		_: WLRKeyboardHandle,
 		key_event: &WLRKeyEvent,
 	) {
-		if key_event.pressed_keys().contains(&comfy_kernel.super_mode_xkb_key) {
+		if comfy_kernel.config.keybindings.modkey.contains(&XkbKeySet::from_vec_without_check(&key_event.pressed_keys())) {
 			comfy_kernel.current_mode = CompositorMode::SuperMode(SuperModeState::new());
 		}
 	}
@@ -62,9 +62,11 @@ impl KeyboardHandler {
 
 		if let Some(xkb_keysyms_set) = xkb_keysyms_set_option {
 			debug!("super_mode_state.xkb_key_set.xkb_keysyms_set: {:?}", xkb_keysyms_set);
-			if comfy_kernel.available_commands.contains_key(&xkb_keysyms_set.clone()) {
+			if comfy_kernel.config.keybindings.bindings.contains_key(&xkb_keysyms_set.clone()) {
 				let command = comfy_kernel
-					.available_commands
+					.config
+					.keybindings
+					.bindings
 					.get(&xkb_keysyms_set.clone())
 					.unwrap()
 					.clone();
@@ -97,7 +99,7 @@ impl KeyboardHandler {
 			}
 		}
 
-		if key_event.pressed_keys().contains(&comfy_kernel.super_mode_xkb_key) {
+		if comfy_kernel.config.keybindings.modkey.contains(&key_set) {
 			comfy_kernel.current_mode = CompositorMode::NormalMode;
 		}
 	}
