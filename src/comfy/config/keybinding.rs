@@ -53,13 +53,13 @@ impl Keybindings {
 		let parsed_content = match toml::from_str::<TomlKeybindings>(file_content) {
 			Ok(ref content) if content.keybindings.is_empty() => {
 				return Err("No bindings specified for the keybindings file".to_string());
-			},
+			}
 			Ok(ref content) if content.modkey.is_empty() => {
 				return Err("No modkey specified for the keybindings file".to_string());
-			},
+			}
 			Ok(ref content) if content.modkey.contains("+") => {
 				return Err("The modkey needs to be a single key.".to_string());
-			},
+			}
 			Ok(content) => content,
 			Err(e) => return Err(format!("Error parsing the toml content: {}", e)),
 		};

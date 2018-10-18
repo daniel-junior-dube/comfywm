@@ -22,21 +22,17 @@ impl Config {
 	pub fn load() -> Config {
 		let keybindings = if var("HOME").is_ok() {
 			match File::open(format!("{}{}", var("HOME").unwrap(), USER_KEYBINDINGS)) {
-				Ok(user_config_file) => {
-					match Keybindings::load(user_config_file) {
-						Ok(keybinding) => {
-							info!("Loading user's keybinding configuration");
-							keybinding
-						},
-						Err(e) => {
-							warn!("The user keybinding configuration contained error(s): {}", e);
-							load_system_default_keybindings()
-						}
+				Ok(user_config_file) => match Keybindings::load(user_config_file) {
+					Ok(keybinding) => {
+						info!("Loading user's keybinding configuration");
+						keybinding
 					}
-				}
-				Err(_) => {
-					load_system_default_keybindings()
-				}
+					Err(e) => {
+						warn!("The user keybinding configuration contained error(s): {}", e);
+						load_system_default_keybindings()
+					}
+				},
+				Err(_) => load_system_default_keybindings(),
 			}
 		} else {
 			load_system_default_keybindings()
@@ -77,7 +73,7 @@ mod tests {
 					"Control_L+Shift_R+Up",
 					"Control_L+Shift_L+Up",
 				];
-				let expected_modkeys : Vec<&str> = vec!["Control_R", "Control_L"];
+				let expected_modkeys: Vec<&str> = vec!["Control_R", "Control_L"];
 				let expected_command_type = CommandType::Exec;
 				let expected_command_args = vec!["weston-terminal".to_string()];
 

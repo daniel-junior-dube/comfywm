@@ -12,11 +12,11 @@ pub mod surface;
 
 use self::output::{OutputLayoutHandler, OutputManagerHandler};
 use self::shell::XdgV6ShellManagerHandler;
+use config::Config;
 use input::cursor::CursorHandler;
 use input::keyboard::XkbKeySet;
 use input::seat::SeatHandler;
 use input::InputManagerHandler;
-use config::Config;
 
 /*
 ..####....####...##...##..#####....####....####...######..######...####...#####..
