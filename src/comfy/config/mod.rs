@@ -28,9 +28,7 @@ impl Config {
 			}
 		};
 
-		Config {
-			keybindings,
-		}
+		Config { keybindings }
 	}
 }
 
@@ -40,11 +38,9 @@ fn load_user_keybindings() -> Result<Keybindings, String> {
 		match File::open(format!("{}{}", user_home_path.unwrap(), USER_KEYBINDINGS_PATH)) {
 			Ok(user_config_file) => match Keybindings::load(user_config_file) {
 				Ok(keybindings) => Ok(keybindings),
-				Err(e) => {
-					Err(format!("The user's keybinding configuration contained error(s): {}", e))
-				}
+				Err(e) => Err(format!("The user's keybinding configuration contained error(s): {}", e)),
 			},
-			Err(e) => Err(format!("Could not open the user's keybinding file: {}", e))
+			Err(e) => Err(format!("Could not open the user's keybinding file: {}", e)),
 		}
 	} else {
 		Err("No HOME variable set for the current user.".to_string())
