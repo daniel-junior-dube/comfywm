@@ -27,10 +27,7 @@ pub struct OutputData {
 }
 
 impl OutputData {
-	pub fn new_empty() -> Self {
-		OutputData::new(Area::new(Origin::new(0, 0), Size::new(0, 0)))
-	}
-
+	/// Creates data for an output which contains a workspace with a layout with the given area.
 	pub fn new(area: Area) -> Self {
 		OutputData {
 			workspace: Workspace::new(area),
@@ -38,6 +35,7 @@ impl OutputData {
 		}
 	}
 
+	/// Updates the workspace's layout area.
 	pub fn update_area(&mut self, area: Area) {
 		self.workspace.window_layout.update_area(area);
 	}
@@ -65,6 +63,7 @@ impl WLROutputLayoutHandler for OutputLayoutHandler {}
 // ? Handles the actions and events of a specific output
 pub struct OutputHandler;
 impl OutputHandler {
+	/// Renders the provided window data using the provided renderer.
 	fn render_window(&self, window_data: &WindowData, renderer: &mut Renderer) {
 		let WindowData {shell_handle, area} = window_data;
 		with_handles!([(shell: {shell_handle}), (surface: {shell.surface()})] => {
@@ -85,6 +84,7 @@ impl OutputHandler {
 	}
 }
 impl WLROutputHandler for OutputHandler {
+	/// Called every time the output frame is updated.
 	fn on_frame(&mut self, compositor_handle: WLRCompositorHandle, output_handle: WLROutputHandle) {
 		with_handles!([(compositor: {compositor_handle}), (output: {output_handle})] => {
 			let output_name = output.name().clone();
@@ -105,6 +105,7 @@ impl WLROutputHandler for OutputHandler {
 	}
 
 	/// WIP
+	/// Called every time the output frame is updated.
 	fn on_transform(&mut self, compositor_handle: WLRCompositorHandle, output_handle: WLROutputHandle) {
 		with_handles!([(compositor: {compositor_handle}), (output: {output_handle})] => {
 			let output_name = output.name().clone();
@@ -113,7 +114,7 @@ impl WLROutputHandler for OutputHandler {
 				let mut output_layout_handle = &comfy_kernel.output_layout_handle;
 				with_handles!([(output_layout: {output_layout_handle})] => {
 					// TODO: If window_layout area doesn't intersect the output, refresh the layout
-					let render_box = workspace.window_layout.render_box().unwrap();
+					let render_box = workspace.window_layout.area().unwrap();
 					let output_layout_box = output_layout.get_box(None);
 				}).unwrap();
 			}
@@ -121,7 +122,6 @@ impl WLROutputHandler for OutputHandler {
 	}
 
 	/// Called every time the output mode changes.
-	/// Resizes the output_data's area
 	fn on_mode_change(&mut self, compositor_handle: WLRCompositorHandle, output_handle: WLROutputHandle) {
 		dehandle!(
 			@compositor = {compositor_handle};
@@ -161,6 +161,7 @@ impl WLROutputHandler for OutputHandler {
 		//println!("needs_swap");
 	}
 
+	/// Called when an output is destroyed (e.g. unplugged).
 	fn destroyed(&mut self, compositor_handle: WLRCompositorHandle, output_handle: WLROutputHandle) {
 		dehandle!(
 			@compositor = {compositor_handle};
@@ -183,6 +184,7 @@ impl WLROutputHandler for OutputHandler {
 // ? Handles addition and removal of outputs
 pub struct OutputManagerHandler;
 impl WLROutputManagerHandler for OutputManagerHandler {
+	/// Called whenever an output is added.
 	fn output_added<'output>(
 		&mut self,
 		compositor_handle: WLRCompositorHandle,
