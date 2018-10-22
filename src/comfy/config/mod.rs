@@ -5,8 +5,8 @@ use self::keybinding::Keybindings;
 use std::env::var;
 use std::fs::File;
 
-const SYSTEM_DEFAULT_KEYBINDINGS: &str = "/etc/comfywm/keybindings.toml";
-const USER_KEYBINDINGS: &str = "/.config/comfywm/keybindings.toml";
+const SYSTEM_DEFAULT_KEYBINDINGS_PATH: &str = "/etc/comfywm/keybindings.toml";
+const USER_KEYBINDINGS_PATH: &str = "/.config/comfywm/keybindings.toml";
 // TODO: import theme config
 // const SYSTEM_DEFAULT_THEME: &str = "/etc/comfywm/theme.toml";
 // const USER__THEME: &str = "/.config/comfywm/theme.toml";
@@ -20,34 +20,41 @@ impl Config {
 	/// it fails to parse it or the file is not there, it loads the system defaults situated in `/etc/comfywm/`. If that
 	/// fails once again Comfy cannot start because it is not properly installed.
 	pub fn load() -> Config {
-		let keybindings = if var("HOME").is_ok() {
-			match File::open(format!("{}{}", var("HOME").unwrap(), USER_KEYBINDINGS)) {
-				Ok(user_config_file) => match Keybindings::load(user_config_file) {
-					Ok(keybinding) => {
-						info!("Loading user's keybinding configuration");
-						keybinding
-					}
-					Err(e) => {
-						warn!("The user keybinding configuration contained error(s): {}", e);
-						load_system_default_keybindings()
-					}
-				},
-				Err(_) => load_system_default_keybindings(),
+		let keybindings = match load_user_keybindings() {
+			Ok(keybindings) => keybindings,
+			Err(e) => {
+				warn!("Could not load the user's keybinding config: {}", e);
+				load_system_default_keybindings()
 			}
-		} else {
-			load_system_default_keybindings()
 		};
 
 		Config {
-			keybindings: keybindings,
+			keybindings,
 		}
+	}
+}
+
+fn load_user_keybindings() -> Result<Keybindings, String> {
+	let user_home_path = var("HOME");
+	if user_home_path.is_ok() {
+		match File::open(format!("{}{}", user_home_path.unwrap(), USER_KEYBINDINGS_PATH)) {
+			Ok(user_config_file) => match Keybindings::load(user_config_file) {
+				Ok(keybindings) => Ok(keybindings),
+				Err(e) => {
+					Err(format!("The user's keybinding configuration contained error(s): {}", e))
+				}
+			},
+			Err(e) => Err(format!("Could not open the user's keybinding file: {}", e))
+		}
+	} else {
+		Err("No HOME variable set for the current user.".to_string())
 	}
 }
 
 fn load_system_default_keybindings() -> Keybindings {
 	info!("Loading system default keybinding configuration");
 	let system_default_keybindings =
-		File::open(SYSTEM_DEFAULT_KEYBINDINGS).expect("Fatal error: Could open keybindings config!");
+		File::open(SYSTEM_DEFAULT_KEYBINDINGS_PATH).expect("Fatal error: Could open keybindings config!");
 	Keybindings::load(system_default_keybindings).expect("Fatal error: could not load any keybindings config files!")
 }
 
