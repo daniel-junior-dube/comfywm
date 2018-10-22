@@ -31,7 +31,12 @@ impl KeyboardHandler {
 		_: WLRKeyboardHandle,
 		key_event: &WLRKeyEvent,
 	) {
-		if key_event.pressed_keys().contains(&comfy_kernel.super_mode_xkb_key) {
+		if comfy_kernel
+			.config
+			.keybindings
+			.modkey
+			.contains(&XkbKeySet::from_vec_without_check(&key_event.pressed_keys()))
+		{
 			comfy_kernel.current_mode = CompositorMode::SuperMode(SuperModeState::new());
 		}
 	}
@@ -62,9 +67,16 @@ impl KeyboardHandler {
 
 		if let Some(xkb_keysyms_set) = xkb_keysyms_set_option {
 			debug!("super_mode_state.xkb_key_set.xkb_keysyms_set: {:?}", xkb_keysyms_set);
-			if comfy_kernel.available_commands.contains_key(&xkb_keysyms_set.clone()) {
+			if comfy_kernel
+				.config
+				.keybindings
+				.bindings
+				.contains_key(&xkb_keysyms_set.clone())
+			{
 				let command = comfy_kernel
-					.available_commands
+					.config
+					.keybindings
+					.bindings
 					.get(&xkb_keysyms_set.clone())
 					.unwrap()
 					.clone();
@@ -97,7 +109,7 @@ impl KeyboardHandler {
 			}
 		}
 
-		if key_event.pressed_keys().contains(&comfy_kernel.super_mode_xkb_key) {
+		if comfy_kernel.config.keybindings.modkey.contains(&key_set) {
 			comfy_kernel.current_mode = CompositorMode::NormalMode;
 		}
 	}
@@ -179,7 +191,7 @@ impl XkbKeySet {
 	/// Parses the given string into a XkbKeySet which contains a set of xkb keys (u32).
 	/// The provided string should correspond to a list of xkb keys separated only by '+' characters.
 	///
-	pub fn from_string(key_set_string: String) -> Result<XkbKeySet, String> {
+	pub fn from_str(key_set_string: &str) -> Result<XkbKeySet, String> {
 		if key_set_string.is_empty() {
 			return Err("Provided string is empty".to_string());
 		}
@@ -188,10 +200,10 @@ impl XkbKeySet {
 		for keysym_name in key_set_string.split("+") {
 			let key = keysym_from_name(keysym_name, KEYSYM_NO_FLAGS);
 			if key == 0 {
-				return Err(format!("Encounted unknown keysym: {}", keysym_name));
+				return Err(format!("Encountered unknown keysym: {}", keysym_name));
 			}
 			if extracted_keysyms.contains(&key) {
-				return Err(format!("Encounted duplicate keysym: {}", keysym_name));
+				return Err(format!("Encountered duplicate keysym: {}", keysym_name));
 			}
 			extracted_keysyms.insert(key);
 		}
@@ -231,26 +243,26 @@ mod tests {
 	#[test]
 	fn generate_from_string_fails_with_wrong_keysym() {
 		// ? Testing 'heck'
-		assert!(XkbKeySet::from_string("heck".to_string()).is_err());
+		assert!(XkbKeySet::from_str("heck").is_err());
 
 		// ? Testing 'Control_L' + 'heck'
-		assert!(XkbKeySet::from_string("Control_L+heck".to_string()).is_err());
+		assert!(XkbKeySet::from_str("Control_L+heck").is_err());
 	}
 
 	#[test]
 	fn generate_from_string_fails_with_empty_string() {
-		assert!(XkbKeySet::from_string("".to_string()).is_err());
+		assert!(XkbKeySet::from_str("").is_err());
 	}
 
 	#[test]
 	fn generate_from_string_fails_with_duplicates() {
-		assert!(XkbKeySet::from_string("Control_L+Control_L".to_string()).is_err());
+		assert!(XkbKeySet::from_str("Control_L+Control_L").is_err());
 	}
 
 	#[test]
 	fn generate_from_string_succeeds_with_valid_string() {
 		// ? Testing 'plus'
-		match XkbKeySet::from_string("plus".to_string()) {
+		match XkbKeySet::from_str("plus") {
 			Err(e) => {
 				error!("ERROR: {}", e);
 				assert!(false);
@@ -261,7 +273,7 @@ mod tests {
 		}
 
 		// ? Testing 'Control_L' + 'a'
-		match XkbKeySet::from_string("Control_L+a".to_string()) {
+		match XkbKeySet::from_str("Control_L+a") {
 			Err(e) => {
 				error!("ERROR: {}", e);
 				assert!(false);
@@ -275,7 +287,7 @@ mod tests {
 		}
 
 		// ? Testing 'Control_L' + 'Alt_L' + 'Delete'
-		match XkbKeySet::from_string("Control_L+Alt_L+Delete".to_string()) {
+		match XkbKeySet::from_str("Control_L+Alt_L+Delete") {
 			Err(e) => {
 				error!("ERROR: {}", e);
 				assert!(false);

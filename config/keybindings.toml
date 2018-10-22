@@ -1,0 +1,4 @@
+modkey = "Control"
+
+[keybindings]
+"$mod+Shift+Up" = "move_active_window_up"
