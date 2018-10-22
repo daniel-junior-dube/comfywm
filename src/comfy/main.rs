@@ -44,7 +44,7 @@ use compositor::generate_default_compositor;
 
 fn main() {
 	// ? WIP: Required for x application to start, will be dynamically set if we wish to keep xwayland
-	env::set_var("DISPLAY", ":0");
+	// TODO: env::set_var("DISPLAY", ":1");
 	env_logger::init();
 	wlr_init_logging(WLR_DEBUG, None);
 	let compositor = generate_default_compositor();
