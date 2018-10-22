@@ -5,13 +5,8 @@ pub fn convert_to_xkb_string(modkey_str: &str, keyset: &str) -> Result<Vec<Strin
 	// Replace all the $mod in the file with the value of modkey
 	let splitted_keyset: Vec<&str> = keyset
 		.split("+")
-		.map(|key|
-			if key == "$mod" {
-				modkey_str
-			} else {
-				key
-			}
-		).collect();
+		.map(|key| if key == "$mod" { modkey_str } else { key })
+		.collect();
 
 	let mut cannonicalized_keys: Vec<Vec<String>> = Vec::new();
 	for key in splitted_keyset.iter() {
