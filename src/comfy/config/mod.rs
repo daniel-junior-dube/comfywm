@@ -34,16 +34,16 @@ impl Config {
 
 fn load_user_keybindings() -> Result<Keybindings, String> {
 	let user_home_path = var("HOME");
-	if user_home_path.is_ok() {
-		match File::open(format!("{}{}", user_home_path.unwrap(), USER_KEYBINDINGS_PATH)) {
-			Ok(user_config_file) => match Keybindings::load(user_config_file) {
-				Ok(keybindings) => Ok(keybindings),
-				Err(e) => Err(format!("The user's keybinding configuration contained error(s): {}", e)),
-			},
-			Err(e) => Err(format!("Could not open the user's keybinding file: {}", e)),
-		}
-	} else {
-		Err("No HOME variable set for the current user.".to_string())
+	if !user_home_path.is_ok() {
+		return Err("No HOME variable set for the current user.".to_string());
+	}
+
+	match File::open(format!("{}{}", user_home_path.unwrap(), USER_KEYBINDINGS_PATH)) {
+		Ok(user_config_file) => match Keybindings::load(user_config_file) {
+			Ok(keybindings) => Ok(keybindings),
+			Err(e) => Err(format!("The user's keybinding configuration contained error(s): {}", e)),
+		},
+		Err(e) => Err(format!("Could not open the user's keybinding file: {}", e)),
 	}
 }
 
@@ -67,7 +67,7 @@ mod tests {
 
 			[keybindings]
 			"$mod+Shift+Up" = "exec weston-terminal"
-			"#;
+		"#;
 		match Keybindings::parse_config_from_toml(config) {
 			Ok(keybinding) => {
 				let expected_bindings: Vec<&str> = vec![
@@ -105,18 +105,18 @@ mod tests {
 		let empty_modkey = r#"modkey = ""
 			[keybindings]
 			"$mod+Shift+Up" = "exec weston-terminal"
-			"#;
+		"#;
 		let no_modkey = r#"[keybindings]
 			"$mod+Shift+Up" = "exec weston-terminal"
-			"#;
+		"#;
 		let invalid_modkey_keyset = r#"modkey = "Heck"
 			[keybindings]
 			"$mod+Shift+Up" = "exec weston-terminal"
-			"#;
+		"#;
 		let invalid_modkey_keyset_2 = r#"modkey = "Control+Down"
 			[keybindings]
 			"$mod+Shift+Up" = "exec weston-terminal"
-			"#;
+		"#;
 		assert!(Keybindings::parse_config_from_toml(empty_modkey).is_err());
 		assert!(Keybindings::parse_config_from_toml(no_modkey).is_err());
 		assert!(Keybindings::parse_config_from_toml(invalid_modkey_keyset).is_err());
@@ -128,28 +128,28 @@ mod tests {
 		let modkey_as_binding_using_mod = r#"modkey = "Control"
 			[keybindings]
 			"$mod" = "exec weston-terminal"
-			"#;
+		"#;
 		let modkey_as_binding = r#"modkey = "Control"
 			[keybindings]
 			"Control" = "exec weston-terminal"
-			"#;
+		"#;
 		let invalid_keyset = r#"modkey = "Control"
 			[keybindings]
 			"Heck" = "exec weston-terminal"
-			"#;
+		"#;
 		let invalid_command = r#"modkey = "Control"
 			[keybindings]
 			"$mod+Shift+Up" = "heck weston-terminal"
-			"#;
+		"#;
 		let empty_command = r#"modkey = "Control"
 			[keybindings]
 			"$mod+Shift+Up" = ""
-			"#;
+		"#;
 		let no_keybindings = r#"modkey = "Control"
 			[keybindings]
-			"#;
+		"#;
 		let no_keybindings_section = r#"modkey = "Control"
-		"$mod+Shift+Up" = "exec weston-terminal"
+			"$mod+Shift+Up" = "exec weston-terminal"
 		"#;
 		assert!(Keybindings::parse_config_from_toml(modkey_as_binding_using_mod).is_err());
 		assert!(Keybindings::parse_config_from_toml(modkey_as_binding).is_err());
