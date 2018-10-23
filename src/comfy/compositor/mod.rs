@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use wlroots::xkbcommon::xkb::keysyms;
 use wlroots::key_events::KeyEvent as WLRKeyEvent;
 use wlroots::{
 	Capability, Compositor as WLRCompositor, CompositorBuilder as WLRCompositorBuilder, Cursor as WLRCursor,
@@ -22,6 +21,7 @@ use self::output::{OutputData, OutputLayoutHandler, OutputManagerHandler};
 use self::shell::XdgV6ShellManagerHandler;
 use self::workspace::Workspace;
 use common::command_type::CommandType;
+use config::Config;
 use input::cursor::CursorHandler;
 use input::keyboard::XkbKeySet;
 use input::seat::SeatHandler;
@@ -126,8 +126,7 @@ pub struct ComfyKernel {
 	pub workspace_pool: Vec<Workspace>,
 	pub seat_handle: Option<WLRSeatHandle>,
 	pub current_mode: CompositorMode,
-	pub super_mode_xkb_key: u32,
-	pub available_commands: HashMap<XkbKeySet, Command>,
+	pub config: Config,
 }
 
 // TODO: handle main seat features like notifying keyboard/cursor events
@@ -137,48 +136,6 @@ impl ComfyKernel {
 		xcursor_manager: WLRXCursorManager,
 		cursor_handle: WLRCursorHandle,
 	) -> Self {
-		let mut available_commands = HashMap::<XkbKeySet, Command>::new();
-
-		available_commands.insert(
-			XkbKeySet::from_string("1".to_string()).unwrap(),
-			Command::new_with_args(CommandType::Exec, vec!["weston-terminal".to_string()]),
-		);
-
-		available_commands.insert(
-			XkbKeySet::from_string("2".to_string()).unwrap(),
-			Command::new_with_args(CommandType::Exec, vec!["gnome-terminal".to_string()]),
-		);
-
-		available_commands.insert(
-			XkbKeySet::from_string("3".to_string()).unwrap(),
-			Command::new_with_args(CommandType::Exec, vec!["firefox".to_string()]),
-		);
-
-		available_commands.insert(
-			XkbKeySet::from_string("Escape".to_string()).unwrap(),
-			Command::new(CommandType::Terminate),
-		);
-
-		available_commands.insert(
-			XkbKeySet::from_string("w".to_string()).unwrap(),
-			Command::new(CommandType::MoveActiveWindowUp),
-		);
-
-		available_commands.insert(
-			XkbKeySet::from_string("s".to_string()).unwrap(),
-			Command::new(CommandType::MoveActiveWindowDown),
-		);
-
-		available_commands.insert(
-			XkbKeySet::from_string("a".to_string()).unwrap(),
-			Command::new(CommandType::MoveActiveWindowLeft),
-		);
-
-		available_commands.insert(
-			XkbKeySet::from_string("d".to_string()).unwrap(),
-			Command::new(CommandType::MoveActiveWindowRight),
-		);
-
 		ComfyKernel {
 			xcursor_manager,
 			cursor_handle,
@@ -189,8 +146,7 @@ impl ComfyKernel {
 			workspace_pool: vec![],
 			seat_handle: None,
 			current_mode: CompositorMode::NormalMode,
-			super_mode_xkb_key: keysyms::KEY_Control_R,
-			available_commands: available_commands,
+			config: Config::load(),
 		}
 	}
 
@@ -275,9 +231,8 @@ impl ComfyKernel {
 	}
 
 	pub fn command_for_keyset(&self, key_set: &XkbKeySet) -> Option<Command> {
-		if self.available_commands.contains_key(&key_set) {
-			let command = self
-				.available_commands
+		if self.config.keybindings.bindings.contains_key(&key_set) {
+			let command = self.config.keybindings.bindings
 				.get(&key_set)
 				.unwrap()
 				.clone();

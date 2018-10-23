@@ -18,6 +18,10 @@ MMMMMMMMMMM MMMMMMMMMMM MMMMMMMMMMMMMM MMMMMMMMMMMM MMMMMMMMMM MMMMMMMMMMMMMM MM
 extern crate wlroots;
 extern crate common;
 extern crate libc;
+extern crate serde;
+extern crate toml;
+#[macro_use]
+extern crate serde_derive;
 #[macro_use]
 extern crate log;
 extern crate env_logger;
@@ -27,6 +31,7 @@ use std::env;
 use wlroots::utils::{init_logging as wlr_init_logging, WLR_DEBUG};
 
 mod compositor;
+mod config;
 mod input;
 mod layout;
 

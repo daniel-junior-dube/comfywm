@@ -3,3 +3,4 @@
 /doc/*
 !/doc/*.tex
 !/doc/images/
+Cargo.lock
