@@ -25,7 +25,10 @@ use compositor::ComfyKernel;
 pub struct CommandInterpreter;
 impl CommandInterpreter {
 	pub fn execute(command: &CompositorCommand, comfy_kernel: &mut ComfyKernel) {
-		println!("Executing command: {:?} with args: {:?}", command.command_type, command.args);
+		println!(
+			"Executing command: {:?} with args: {:?}",
+			command.command_type, command.args
+		);
 		match command.command_type {
 			CommandType::MoveActiveWindowUp => {
 				handle_move_active_window_up(command, comfy_kernel);

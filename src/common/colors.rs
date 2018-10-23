@@ -11,14 +11,12 @@ pub struct RgbaColor {
 	r: f32,
 	g: f32,
 	b: f32,
-	a: f32
+	a: f32,
 }
 
 impl RgbaColor {
 	pub fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
-		RgbaColor {
-			r, g, b, a
-		}
+		RgbaColor { r, g, b, a }
 	}
 
 	pub fn as_slice(&self) -> [f32; 4] {
@@ -30,7 +28,7 @@ pub struct HexColor {
 	r: u8,
 	g: u8,
 	b: u8,
-	a: u8
+	a: u8,
 }
 
 impl HexColor {
@@ -55,15 +53,11 @@ pub enum Color {
 
 impl Color {
 	pub fn bunker() -> Self {
-		return Color::Rgba(RgbaColor::new(
-			44.0/255.0, 49.0/255.0, 55.0/255.0, 1.0
-		));
+		return Color::Rgba(RgbaColor::new(44.0 / 255.0, 49.0 / 255.0, 55.0 / 255.0, 1.0));
 	}
 
 	pub fn burgundy() -> Self {
-		return Color::Rgba(RgbaColor::new(
-			135.0/255.0, 7.0/255.0, 52.0/255.0, 1.0
-		));
+		return Color::Rgba(RgbaColor::new(135.0 / 255.0, 7.0 / 255.0, 52.0 / 255.0, 1.0));
 	}
 
 	pub fn as_rgba_slice(&self) -> [f32; 4] {

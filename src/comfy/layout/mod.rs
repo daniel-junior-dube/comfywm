@@ -1,4 +1,6 @@
-use wlroots::{Area, Origin, Size, XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle, XdgV6ShellState as WLRXdgV6ShellState};
+use wlroots::{
+	Area, Origin, Size, XdgV6ShellState as WLRXdgV6ShellState, XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle,
+};
 
 use std::collections::LinkedList;
 
@@ -71,7 +73,8 @@ impl ContainerData {
 	}
 
 	fn get_children_weight_sum(&self, nodes: &Vec<Option<LayoutNode>>) -> f32 {
-		self.children_indices
+		self
+			.children_indices
 			.iter()
 			.map(|index| match &nodes[*index] {
 				Some(layout_node) => layout_node.weight,
@@ -80,10 +83,7 @@ impl ContainerData {
 	}
 
 	fn index_of(&self, node_index: usize) -> Option<usize> {
-		self
-			.children_indices
-			.iter()
-			.position(|element| *element == node_index)
+		self.children_indices.iter().position(|element| *element == node_index)
 	}
 }
 
@@ -146,12 +146,17 @@ impl LayoutNode {
 	}
 
 	/// Rebalances the node given it's parent area and axis. The dimensions rebalancing will be calculated given the siblings weight sum and the position from the origin_offeset.
-	pub fn rebalance(&mut self, parent_area: &Area, parent_axis: &ContainerAxis, siblings_weight_sum: f32, origin_offset: i32) {
+	pub fn rebalance(
+		&mut self,
+		parent_area: &Area,
+		parent_axis: &ContainerAxis,
+		siblings_weight_sum: f32,
+		origin_offset: i32,
+	) {
 		// ? Change area based on parent and siblings changes
 		match parent_axis {
 			ContainerAxis::Horizontal => {
-				let area_width =
-					((self.weight / siblings_weight_sum) * parent_area.size.width as f32).ceil() as i32;
+				let area_width = ((self.weight / siblings_weight_sum) * parent_area.size.width as f32).ceil() as i32;
 				let area_height = parent_area.size.height;
 				let new_area = Area::new(
 					Origin::new(origin_offset, parent_area.origin.y),
@@ -161,8 +166,7 @@ impl LayoutNode {
 			}
 			ContainerAxis::Vertical => {
 				let area_width = parent_area.size.width;
-				let area_height =
-					((self.weight / siblings_weight_sum) * parent_area.size.height as f32).ceil() as i32;
+				let area_height = ((self.weight / siblings_weight_sum) * parent_area.size.height as f32).ceil() as i32;
 				let new_area = Area::new(
 					Origin::new(parent_area.origin.x, origin_offset),
 					Size::new(area_width, area_height),
@@ -173,11 +177,12 @@ impl LayoutNode {
 
 		// ? Apply new size to the shell
 		if let LayoutNodeType::Window(shell_handle) = &self.node_type {
-			shell_handle.run(|shell| {
-				if let Some(WLRXdgV6ShellState::TopLevel(ref mut xdg_top_level)) = shell.state() {
-					xdg_top_level.set_size(self.area.size.width as u32, self.area.size.height as u32);
-				}
-			}).unwrap();
+			shell_handle
+				.run(|shell| {
+					if let Some(WLRXdgV6ShellState::TopLevel(ref mut xdg_top_level)) = shell.state() {
+						xdg_top_level.set_size(self.area.size.width as u32, self.area.size.height as u32);
+					}
+				}).unwrap();
 		}
 	}
 }
@@ -300,7 +305,12 @@ impl Layout {
 					let mut origin_offset: i32 = 0;
 					for child_index in container_data.children_indices {
 						if let Some(Some(child_node)) = self.nodes.iter_mut().nth(child_index) {
-							child_node.rebalance(&container_area, &container_data.axis, children_weight_sum, origin_offset);
+							child_node.rebalance(
+								&container_area,
+								&container_data.axis,
+								children_weight_sum,
+								origin_offset,
+							);
 
 							match container_data.axis {
 								ContainerAxis::Horizontal => {
@@ -425,7 +435,7 @@ impl Layout {
 
 	/// Removes all the children of a node
 	pub fn remove_all_children_of(&mut self, node_index: usize) {
-		let mut indices_of_nodes_to_remove:Vec<usize> = vec![];
+		let mut indices_of_nodes_to_remove: Vec<usize> = vec![];
 
 		// ? If the node is a container, add all children to the nodes to remove
 		if let Some(ref node) = self.nodes[node_index] {

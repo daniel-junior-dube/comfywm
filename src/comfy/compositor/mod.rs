@@ -5,7 +5,8 @@ use wlroots::{
 	Capability, Compositor as WLRCompositor, CompositorBuilder as WLRCompositorBuilder, Cursor as WLRCursor,
 	CursorHandle as WLRCursorHandle, KeyboardHandle as WLRKeyboardHandle, OutputLayout as WLROutputLayout,
 	OutputLayoutHandle as WLROutputLayoutHandle, Seat as WLRSeat, SeatHandle as WLRSeatHandle,
-	XCursorManager as WLRXCursorManager, XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle, XdgV6ShellState as WLRXdgV6ShellState
+	XCursorManager as WLRXCursorManager, XdgV6ShellState as WLRXdgV6ShellState,
+	XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle,
 };
 
 use wlroots::wlroots_sys::protocols::server_decoration::server::org_kde_kwin_server_decoration_manager::Mode as ServerDecorationMode;
@@ -167,7 +168,7 @@ impl ComfyKernel {
 	}
 
 	pub fn add_window_to_active_workspace(&mut self, shell_handle: WLRXdgV6ShellSurfaceHandle) {
-		if let Some(OutputData {workspace, ..}) = self.output_data_map.get_mut(&self.active_output_name) {
+		if let Some(OutputData { workspace, .. }) = self.output_data_map.get_mut(&self.active_output_name) {
 			workspace.add_window(shell_handle);
 		}
 		self.schedule_frame_for_output(&self.active_output_name);
@@ -232,10 +233,7 @@ impl ComfyKernel {
 
 	pub fn command_for_keyset(&self, key_set: &XkbKeySet) -> Option<Command> {
 		if self.config.keybindings.bindings.contains_key(&key_set) {
-			let command = self.config.keybindings.bindings
-				.get(&key_set)
-				.unwrap()
-				.clone();
+			let command = self.config.keybindings.bindings.get(&key_set).unwrap().clone();
 			Some(command)
 		} else {
 			None

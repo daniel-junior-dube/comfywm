@@ -194,18 +194,12 @@ impl XkbKeySet {
 
 	// Set the the keysyms_set as the difference of the current one with the provided one
 	pub fn set_to_difference(&mut self, key_set: &XkbKeySet) {
-		self.keysyms_set = self.keysyms_set
-				.difference(&key_set.keysyms_set)
-				.cloned()
-				.collect();
+		self.keysyms_set = self.keysyms_set.difference(&key_set.keysyms_set).cloned().collect();
 	}
 
 	// Set the the keysyms_set as the difference of the current one with the provided one
 	pub fn set_to_union(&mut self, key_set: &XkbKeySet) {
-		self.keysyms_set = self.keysyms_set
-				.union(&key_set.keysyms_set)
-				.cloned()
-				.collect();
+		self.keysyms_set = self.keysyms_set.union(&key_set.keysyms_set).cloned().collect();
 	}
 }
 

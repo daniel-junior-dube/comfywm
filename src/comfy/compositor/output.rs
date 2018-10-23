@@ -7,10 +7,10 @@ use wlroots::{
 	OutputManagerHandler as WLROutputManagerHandler, Renderer, Size,
 };
 
+use common::colors::Color;
 use compositor::workspace::Workspace;
 use compositor::ComfyKernel;
 use layout::WindowData;
-use common::colors::Color;
 
 /*
 ..####...##..##..######..#####...##..##..######..#####....####...######...####..
@@ -65,7 +65,7 @@ pub struct OutputHandler;
 impl OutputHandler {
 	/// Renders the provided window data using the provided renderer.
 	fn render_window(&self, window_data: &WindowData, renderer: &mut Renderer) {
-		let WindowData {shell_handle, area} = window_data;
+		let WindowData { shell_handle, area } = window_data;
 		with_handles!([(shell: {shell_handle}), (surface: {shell.surface()})] => {
 			if true {
 				let transform = renderer.output.get_transform().invert();
