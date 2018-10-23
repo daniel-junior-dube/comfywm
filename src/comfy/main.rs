@@ -19,6 +19,10 @@ extern crate wlroots;
 extern crate chrono;
 extern crate common;
 extern crate libc;
+extern crate serde;
+extern crate toml;
+#[macro_use]
+extern crate serde_derive;
 #[macro_use]
 extern crate log;
 extern crate log4rs;
@@ -26,6 +30,7 @@ extern crate log4rs;
 use wlroots::utils::{init_logging as wlr_init_logging, WLR_DEBUG};
 
 mod compositor;
+mod config;
 mod input;
 mod utils;
 
