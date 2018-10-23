@@ -6,7 +6,6 @@ documentation = "..."
 homepage = "..."
 repository = "..."
 authors = ["dubd2206 <daniel-junior.dube@usherbrooke.ca>", "chaf2717 <felix.chabot@usherbrooke.ca>"]
-build = "build.rs"
 readme = "README.md"
 license-file = "LICENSE"
 keywords = ["window managers", "desktop", "wm", "linux", "interface"]
@@ -27,4 +26,5 @@ serde_derive = "1.0.80"
 wlroots = { path = "./lib/wlroots-rs" }
 libc = "0.2.43"
 log = "0.4.0"
-env_logger = "0.5.13"
+log4rs = "0.8.1"
+chrono = "0.4.6"
