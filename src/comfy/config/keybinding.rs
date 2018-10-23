@@ -30,10 +30,11 @@ impl Keybindings {
 	pub fn load(mut config_file: File) -> Result<Self, String> {
 		let mut file_content = String::new();
 
-		config_file
-			.read_to_string(&mut file_content)
-			.expect("Error reading file keybindings config file");
-		Keybindings::parse_config_from_toml(&file_content)
+		if let Err(e) = config_file.read_to_string(&mut file_content) {
+			Err(format!("Could not read the contents of the keybindings file: {}", e))
+		} else {
+			Keybindings::parse_config_from_toml(&file_content)
+		}
 	}
 
 	/// Loads the config file from a specific path and converts it to Comfy's `Keybindings` object.
@@ -51,6 +52,7 @@ impl Keybindings {
 		let mut keybindings = Keybindings::new();
 
 		let parsed_content = match toml::from_str::<TomlKeybindings>(file_content) {
+			Err(e) => return Err(format!("Error parsing the toml content: {}", e)),
 			Ok(ref content) if content.keybindings.is_empty() => {
 				return Err("No bindings specified for the keybindings file".to_string());
 			}
@@ -61,7 +63,6 @@ impl Keybindings {
 				return Err("The modkey needs to be a single key.".to_string());
 			}
 			Ok(content) => content,
-			Err(e) => return Err(format!("Error parsing the toml content: {}", e)),
 		};
 
 		let modkey_str = &parsed_content.modkey;
@@ -77,14 +78,14 @@ impl Keybindings {
 			for xkb_keyset_str in xkb_keysets_strs.iter() {
 				if modkey_keyset_strs.contains(xkb_keyset_str) {
 					return Err(format!("Command set to modkey! {} = {}", keys_str, command_str));
-				} else {
-					let xkb_keyset = XkbKeySet::from_str(xkb_keyset_str).unwrap();
-					if command_str.is_empty() {
-						return Err(format!("The command associated with {} is empty", &keys_str));
-					}
-					let command = Command::from_str(command_str)?;
-					keybindings.bindings.insert(xkb_keyset, command);
 				}
+
+				let xkb_keyset = XkbKeySet::from_str(xkb_keyset_str).unwrap();
+				if command_str.is_empty() {
+					return Err(format!("The command associated with {} is empty", &keys_str));
+				}
+				let command = Command::from_str(command_str)?;
+				keybindings.bindings.insert(xkb_keyset, command);
 			}
 		}
 

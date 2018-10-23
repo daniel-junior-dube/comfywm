@@ -5,21 +5,16 @@ pub fn convert_to_xkb_string(modkey_str: &str, keyset: &str) -> Result<Vec<Strin
 	// Replace all the $mod in the file with the value of modkey
 	let splitted_keyset: Vec<&str> = keyset
 		.split("+")
-		.map(|key| {
-			if key == "$mod" {
-				return modkey_str;
-			} else {
-				return key;
-			}
-		}).collect();
+		.map(|key| if key == "$mod" { modkey_str } else { key })
+		.collect();
 
-	let mut cannonicalized_keys: Vec<Vec<String>> = Vec::new();
+	let mut canonicalized_keys: Vec<Vec<String>> = Vec::new();
 	for key in splitted_keyset.iter() {
-		cannonicalized_keys.push(canonicalize_key(key)?)
+		canonicalized_keys.push(canonicalize_key(key)?)
 	}
 
 	// Return all the possible combinations of valid XkbKeySet as a multiple Strings
-	Ok(create_combinations_as_string(cannonicalized_keys))
+	Ok(create_combinations_as_string(canonicalized_keys))
 }
 
 /// A recursive function that take multiple keys and return all the possible combinations within them.
@@ -31,8 +26,6 @@ pub fn convert_to_xkb_string(modkey_str: &str, keyset: &str) -> Result<Vec<Strin
 ///               "Control_L+Shift_R+Up",
 ///               "Control_L+Shift_L+Up"]```
 fn create_combinations_as_string(keys: Vec<Vec<String>>) -> Vec<String> {
-	let mut combinations: Vec<String> = Vec::new();
-
 	// Split the keys in two groups
 	// Ex: [["Control_L", "Control_R"], ["Shift_L", "Shift_R"], ["Up"]] =>
 	// key_head_group = ["Control_L", "Control_R"]
@@ -45,8 +38,10 @@ fn create_combinations_as_string(keys: Vec<Vec<String>>) -> Vec<String> {
 
 	// Base case: return the prefix if the remainder is empty.
 	if key_tail_group.len() == 0 {
-		return prefix_keys;
+		prefix_keys
 	} else {
+		let mut combinations: Vec<String> = Vec::new();
+
 		// Recursive step: call the function it self with the remainder until it is empty.
 		let remainder_key_combinations: Vec<String> = create_combinations_as_string(key_tail_group);
 
@@ -56,9 +51,9 @@ fn create_combinations_as_string(keys: Vec<Vec<String>>) -> Vec<String> {
 				combinations.push(vec![inital_key.clone(), key.clone()].join("+"));
 			}
 		}
-	}
 
-	combinations
+		combinations
+	}
 }
 
 /// Convert a Comfy's modifier class into a valid XkbKeySet if it needs to.
