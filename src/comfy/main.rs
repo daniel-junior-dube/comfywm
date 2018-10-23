@@ -16,6 +16,7 @@ MMMMMMMMMMM MMMMMMMMMMM MMMMMMMMMMMMMM MMMMMMMMMMMM MMMMMMMMMM MMMMMMMMMMMMMM MM
 */
 #[macro_use]
 extern crate wlroots;
+extern crate chrono;
 extern crate common;
 extern crate libc;
 extern crate serde;
@@ -24,7 +25,7 @@ extern crate toml;
 extern crate serde_derive;
 #[macro_use]
 extern crate log;
-extern crate env_logger;
+extern crate log4rs;
 
 use std::env;
 
@@ -34,8 +35,10 @@ mod compositor;
 mod config;
 mod input;
 mod layout;
+mod utils;
 
 use compositor::generate_default_compositor;
+use utils::logger::{generate_log4rs_config, generate_wlroots_rs_log_callback};
 
 /*
 .##.....##....###....####.##....##
@@ -50,8 +53,10 @@ use compositor::generate_default_compositor;
 fn main() {
 	// ? WIP: Required for x application to start, will be dynamically set if we wish to keep xwayland
 	// TODO: env::set_var("DISPLAY", ":1");
-	env_logger::init();
-	wlr_init_logging(WLR_DEBUG, None);
+	let log4rs_config = generate_log4rs_config();
+	// ? Use this handle to edit logging at runtime
+	let _handle = log4rs::init_config(log4rs_config).unwrap();
+	wlr_init_logging(WLR_DEBUG, generate_wlroots_rs_log_callback());
 	let compositor = generate_default_compositor();
 	compositor.run()
 }
