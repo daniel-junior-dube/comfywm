@@ -79,6 +79,7 @@ fn handle_exec(command: &CompositorCommand, _: &mut ComfyKernel) {
 			if nb_of_arguments > 1 {
 				process_command.args(&command_clone.args[1..nb_of_arguments - 1]);
 			}
+			// ! Could generate panics if command fails
 			process_command.output().unwrap();
 		});
 	}
