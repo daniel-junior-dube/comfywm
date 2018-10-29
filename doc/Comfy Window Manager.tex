@@ -13,7 +13,7 @@
 
 \graphicspath{ {./images/} }
 
-\lstset{frame=single,numbers=left}
+\lstset{frame=single,numbers=left,inputpath=./sources}
 
 \begin{document}
 \maketitle
@@ -128,7 +128,7 @@ nous prévoyons avoir deux fichiers de configurations:
 \subsubsection{keybindings.toml}
 \begin{minipage}{\linewidth}
     \lstinputlisting[label=keybindings-example,title=Exemple d'un fichier
-    keybindings.toml]{exemple.toml}
+    keybindings.toml]{keybindings.toml}
 \end{minipage}
 
 \par
@@ -153,10 +153,10 @@ section est relativement simple. Le membre gauche de l'égalité est un ensemble
 de touches entre guillemets. Malheureusement, la clé en \textit{TOML} (qui est
 le membre gauche en question) ne peut pas contenir de \textbf{+}, c'est
 pourquoi nous utilisons les guillemets. Ensuite, le membre droit contient deux
-parties, une commande suivie d'arguments. Par exemple, à la ligne 5 du fichier
+parties, une commande suivie d'arguments. Par exemple, à la ligne 4 du fichier
 d'exemple, nous avons:
 
-\lstinputlisting[frame=none,numbers=none,firstline=5]{exemple.toml}
+\lstinputlisting[frame=none,numbers=none,firstline=4,lastline=4]{keybindings.toml}
 
 La commande serait donc \textbf{exec} et l'argument serait
 \textbf{weston-terminal}.
@@ -165,7 +165,7 @@ La commande serait donc \textbf{exec} et l'argument serait
 \bigskip
 Une chose importante à savoir est que \textit{Comfy} gère les entrées clavier
 et vérifie si une combinaison de touches se trouve dans le fichier de
-configuration et l'éxecute. Ceci serait problématique si un raccourci serait
+configuration et l'exécute. Ceci serait problématique si un raccourci serait
 aussi associé dans une application. Par exemple, associer une commande à la
 combinaison \textbf{Control+S} ne serait pas une bonne idée puisque celle-ci
 sera toujours interceptée par \textit{Comfy} avant même de se rendre à
