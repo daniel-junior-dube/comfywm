@@ -8,9 +8,9 @@ use wlroots::{
 };
 
 use common::colors::Color;
+use compositor::window::Window;
 use compositor::workspace::Workspace;
 use compositor::ComfyKernel;
-use layout::WindowData;
 
 /*
 ..####...##..##..######..#####...##..##..######..#####....####...######...####..
@@ -33,11 +33,6 @@ impl OutputData {
 			workspace: Workspace::new(area),
 			clear_color: Color::burgundy().as_rgba_slice(),
 		}
-	}
-
-	/// Updates the workspace's layout area.
-	pub fn update_area(&mut self, area: Area) {
-		self.workspace.window_layout.update_area(area);
 	}
 }
 
@@ -64,22 +59,29 @@ impl WLROutputLayoutHandler for OutputLayoutHandler {}
 pub struct OutputHandler;
 impl OutputHandler {
 	/// Renders the provided window data using the provided renderer.
-	fn render_window(&self, window_data: &WindowData, renderer: &mut Renderer) {
-		let WindowData { shell_handle, area } = window_data;
+	fn render_window(&self, window: &Window, renderer: &mut Renderer) {
+		let Window { shell_handle, area } = window;
 		with_handles!([(shell: {shell_handle}), (surface: {shell.surface()})] => {
-			if true {
-				let transform = renderer.output.get_transform().invert();
-				let matrix = wlr_project_box(
-					*area,
-					transform,
-					0.0,
-					renderer.output.transform_matrix()
-				);
-				if let Some(texture) = surface.texture().as_ref() {
-					renderer.render_texture_with_matrix(texture, matrix);
-				}
-				surface.send_frame_done(current_time());
-			};
+			let (width, height) = surface.current_state().size();
+			let (render_width, render_height) = (
+				width * renderer.output.scale() as i32,
+				height * renderer.output.scale() as i32
+			);
+			let render_box = Area::new(
+				Origin::new(area.origin.x, area.origin.y),
+				Size::new(render_width, render_height)
+			);
+			let transform = renderer.output.get_transform().invert();
+			let matrix = wlr_project_box(
+				render_box, // ! *area
+				transform,
+				0.0,
+				renderer.output.transform_matrix()
+			);
+			if let Some(texture) = surface.texture().as_ref() {
+				renderer.render_texture_with_matrix(texture, matrix);
+			}
+			surface.send_frame_done(current_time());
 		}).unwrap();
 	}
 }
@@ -94,13 +96,19 @@ impl WLROutputHandler for OutputHandler {
 				.expect("Compositor was not loaded with a renderer");
 			let mut render_context = renderer.render(output, None);
 
-			// ? Render the windows from the workspace's layout
+			// ? Clearing the screen and get indices of windows to render
+			let mut render_color = Color::black().as_rgba_slice();
+			let mut windows = vec![];
 			if let Some(OutputData {workspace, clear_color, ..}) = comfy_kernel.output_data_map.get(&output_name) {
-				render_context.clear(*clear_color);
-				for window in workspace.window_layout.windows_data() {
-					self.render_window(&window, &mut render_context);
-				}
+				render_color = *clear_color;
+				windows = workspace.window_layout.get_windows();
 			}
+
+			// ? Clear the screen with the render color
+			render_context.clear(render_color);
+
+			// ? Render each window
+			windows.iter().for_each(|window_ref| self.render_window(window_ref, &mut render_context));
 		}).unwrap()
 	}
 
@@ -131,12 +139,13 @@ impl WLROutputHandler for OutputHandler {
 			if let Some(output_data) = output_data_map.get_mut(&output.name()) {
 				let (x, y) = output.layout_space_pos();
 				let (width, height) = output.effective_resolution();
-				output_data.update_area(
+				let updated_windows_with_area = output_data.workspace.window_layout.update_area_and_rebalance(
 					Area::new(
 						Origin::new(x, y),
 						Size::new(width, height)
 					)
 				);
+				// TODO: IMPORTANT! - handle updated_windows_with_area
 			}
 		);
 	}

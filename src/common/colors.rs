@@ -52,6 +52,10 @@ pub enum Color {
 }
 
 impl Color {
+	pub fn black() -> Self {
+		return Color::Rgba(RgbaColor::new(0.0, 0.0, 0.0, 1.0));
+	}
+
 	pub fn bunker() -> Self {
 		return Color::Rgba(RgbaColor::new(44.0 / 255.0, 49.0 / 255.0, 55.0 / 255.0, 1.0));
 	}
