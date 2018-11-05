@@ -53,6 +53,11 @@ impl LayoutDirection {
 	}
 }
 
+pub enum RelativePosition {
+	After,
+	Before
+}
+
 #[derive(Clone, Eq, PartialEq)]
 pub struct ContainerData {
 	pub children_indices: Vec<NodeIndex>,
@@ -71,9 +76,25 @@ impl ContainerData {
 		self.children_indices.len()
 	}
 
+	fn set_axis(&mut self, new_axis: LayoutAxis) {
+		self.axis = new_axis;
+	}
+
 	/// Adds the provided index as a child of the container.
 	fn add_child_index(&mut self, child_index: NodeIndex) {
 		self.children_indices.push(child_index);
+	}
+
+	fn add_child_index_after(&mut self, index_to_add: NodeIndex, value_of_target: NodeIndex) {
+		if let Some(index_of_target) = self.index_of(value_of_target) {
+			self.children_indices.insert(index_of_target + 1, index_to_add);
+		}
+	}
+
+	fn add_child_index_before(&mut self, index_to_add: NodeIndex, value_of_target: NodeIndex) {
+		if let Some(index_of_target) = self.index_of(value_of_target) {
+			self.children_indices.insert(index_of_target, index_to_add);
+		}
 	}
 
 	fn _get_children_weight_sum(&self, nodes: &Vec<Option<LayoutNode>>) -> f32 {
@@ -181,7 +202,7 @@ impl LayoutNode {
 				let area_width = ((self.weight / siblings_weight_sum) * parent_area.size.width as f32).ceil() as i32;
 				let area_height = parent_area.size.height;
 				Area::new(
-					Origin::new(previous_siblings_offset, parent_area.origin.y),
+					Origin::new(parent_area.origin.x + previous_siblings_offset, parent_area.origin.y),
 					Size::new(area_width, area_height),
 				)
 			}
@@ -189,7 +210,7 @@ impl LayoutNode {
 				let area_width = parent_area.size.width;
 				let area_height = ((self.weight / siblings_weight_sum) * parent_area.size.height as f32).ceil() as i32;
 				Area::new(
-					Origin::new(parent_area.origin.x, previous_siblings_offset),
+					Origin::new(parent_area.origin.x, parent_area.origin.y + previous_siblings_offset),
 					Size::new(area_width, area_height),
 				)
 			}
@@ -291,11 +312,8 @@ impl Layout {
 	}
 
 	/// Returns the node index of the parent of the active node.
-	fn get_parent_node_index_of_active_node(&self) -> NodeIndex {
-		match self.get_parent_node_index_of(self.active_node_index) {
-			Some(parent_node_index) => parent_node_index,
-			None => INDEX_OF_ROOT,
-		}
+	fn get_parent_node_index_of_active_node(&self) -> Option<NodeIndex> {
+		self.get_parent_node_index_of(self.active_node_index)
 	}
 
 	/// Adds a new node inside layout's list of nodes. If there is holes in the list (available places), one of them will be used.
@@ -447,47 +465,75 @@ impl Layout {
 		}
 	}
 
+	/// Move the node associated to the provided node index as the last child of a provided target.
+	fn move_index_under(&mut self, node_index: NodeIndex, index_of_target: NodeIndex) -> Option<NodeIndex> {
+
+		// ? Remove child from current parent
+		if let Some(parent_node_index) = self.get_parent_node_index_of(node_index) {
+			if let Some(Some(parent_node)) = self.nodes.get_mut(parent_node_index) {
+				if let LayoutNodeType::Container(ref mut parent_container_data) = parent_node.node_type {
+					parent_container_data.remove(node_index);
+				}
+			}
+		}
+
+		// ? Set parent to child
+		if let Some(Some(node)) = self.nodes.get_mut(node_index) {
+			node.parent_node_index = index_of_target;
+		}
+
+		// ? Set child to parent
+		if let Some(Some(parent_node)) = self.nodes.get_mut(index_of_target) {
+			if let LayoutNodeType::Container(ref mut container_node_data) = parent_node.node_type {
+				container_node_data.add_child_index(node_index);
+				return Some(index_of_target);
+			}
+		}
+
+		None
+	}
+
 	/// Moves the nodes associated with the provided node indices next to the target.
-	fn move_indices_next_to(&mut self, indices_to_move: Vec<NodeIndex>, index_of_target: NodeIndex) {
+	fn move_indices_next_to(&mut self, indices_to_move: Vec<NodeIndex>, index_of_target: NodeIndex, relative_position: &RelativePosition) {
 		for index_to_move in indices_to_move.iter().rev() {
-			self.move_index_next_to(*index_to_move, index_of_target);
+			self.move_index_next_to(*index_to_move, index_of_target, relative_position);
 		}
 	}
 
 	/// Moves the nodes associated with the direct children of the provided `parent_node_index` next to the target.
-	fn move_direct_children_next_to(&mut self, parent_node_index: NodeIndex, index_of_target: NodeIndex) {
+	fn move_direct_children_next_to(&mut self, parent_node_index: NodeIndex, index_of_target: NodeIndex, relative_position: &RelativePosition) {
 		let direct_children_indices = self.get_direct_children_indices_of(parent_node_index);
-		self.move_indices_next_to(direct_children_indices, index_of_target);
+		self.move_indices_next_to(direct_children_indices, index_of_target, relative_position);
 	}
 
 	/// Moves a node in the layout next to another.
-	fn move_index_next_to(&mut self, index_of_node_to_move: NodeIndex, index_of_target: NodeIndex) -> Option<NodeIndex> {
+	fn move_index_next_to(&mut self, index_of_node_to_move: NodeIndex, index_of_target: NodeIndex, relative_position: &RelativePosition) -> Option<NodeIndex> {
 
 		// ? Get parent node index, otherwise print an error (parent of target has to exist or target isn't a valid node)
-		if let Some(parent_node_index) = self.get_parent_node_index_of(index_of_target) {
+		if let Some(index_of_parent_of_target) = self.get_parent_node_index_of(index_of_target) {
 
 			// ? Remove node to add from it's parent
 			if let Some(parent_index_of_node_to_add) = self.get_parent_node_index_of(index_of_node_to_move) {
 				if let Some(Some(parent_of_node_to_add)) = self.nodes.get_mut(parent_index_of_node_to_add) {
-					match parent_of_node_to_add.node_type {
-						LayoutNodeType::Container(ref mut parent_container_data) => {
-							parent_container_data.remove(index_of_node_to_move);
-						},
-						_ => {}
+					if let LayoutNodeType::Container(ref mut parent_container_data) = parent_of_node_to_add.node_type {
+						parent_container_data.remove(index_of_node_to_move);
 					}
 				}
 			}
 
 			// ? Set parent to child
 			if let Some(Some(node)) = self.nodes.get_mut(index_of_node_to_move) {
-				node.parent_node_index = parent_node_index;
+				node.parent_node_index = index_of_parent_of_target;
 			}
 
 			// ? Set child to parent
-			if let Some(Some(parent_node)) = self.nodes.get_mut(parent_node_index) {
+			if let Some(Some(parent_node)) = self.nodes.get_mut(index_of_parent_of_target) {
 				if let LayoutNodeType::Container(ref mut parent_container_data) = parent_node.node_type {
-					parent_container_data.add_child_index(index_of_node_to_move);
-					return Some(parent_node_index);
+					match relative_position {
+						RelativePosition::After => parent_container_data.add_child_index_after(index_of_node_to_move, index_of_target),
+						RelativePosition::Before => parent_container_data.add_child_index_before(index_of_node_to_move, index_of_target),
+					}
+					return Some(index_of_parent_of_target);
 				}
 			}
 		} else {
@@ -497,21 +543,102 @@ impl Layout {
 		None
 	}
 
+	fn get_axis_of(&self, node_index: NodeIndex) -> Option<LayoutAxis> {
+		if let Some(Some(node)) = self.nodes.get(node_index) {
+			if let LayoutNodeType::Container(ref container_data) = node.node_type {
+				return Some(container_data.axis.clone());
+			}
+		}
+		None
+	}
+
+	/// Adds a new container to the layout.
+	fn add_new_container(&mut self, axis: LayoutAxis, parent_node_index: NodeIndex) -> NodeIndex {
+		let container_node = LayoutNode::new_container_node(
+			ContainerData::new(vec![], axis),
+			parent_node_index
+		);
+
+		self.add_node_to_list(container_node)
+	}
+
 	/// Binds the provided index as a neighbor of the active node.
 	/// Returns the index of the parent node if if was successfully added.
-	fn add_index_to_parent_of_active_node(&mut self, node_index: NodeIndex) -> Option<NodeIndex> {
-		let parent_node_index = self.get_parent_node_index_of_active_node();
+	fn move_index_relative_to_active_node(&mut self, index_of_node_to_add: NodeIndex, direction: &LayoutDirection) -> Option<NodeIndex> {
+		let active_node_is_root = self.active_node_index == INDEX_OF_ROOT;
+		let parent_node_index = if active_node_is_root {
+			0
+		} else {
+			self.get_parent_node_index_of_active_node().unwrap_or_else(|| INDEX_OF_ROOT)
+		};
 
-		// ? Set parent to child
-		if let Some(ref mut node) = self.nodes[node_index] {
-			node.parent_node_index = parent_node_index;
-		}
+		let axis_of_parent = self.get_axis_of(parent_node_index).unwrap();
+		let nb_children_of_parent = self.get_direct_children_indices_of(parent_node_index).len();
+		match (nb_children_of_parent, direction.get_axis() == axis_of_parent) {
 
-		// ? Set child to parent
-		if let Some(parent_node) = &mut self.nodes[parent_node_index] {
-			if let LayoutNodeType::Container(ref mut container_node_data) = parent_node.node_type {
-				container_node_data.add_child_index(node_index);
+			// ? Parent has only 0 or 1 children, we don't care about the axis since where going to change it
+			(0 ... 1, _) => {
+				if active_node_is_root {
+
+					// ? Active node is root, just add new index under it
+					self.move_index_under_root(index_of_node_to_add);
+				} else {
+
+					// ? Move the new node before or after the active node (depending on the given direction)
+					let active_node_index = self.active_node_index;
+					match direction {
+						LayoutDirection::Left | LayoutDirection::Up =>
+							self.move_index_next_to(index_of_node_to_add, active_node_index, &RelativePosition::Before),
+						LayoutDirection::Right | LayoutDirection::Down =>
+							self.move_index_next_to(index_of_node_to_add, active_node_index, &RelativePosition::After),
+					};
+				}
+
+				// ? Change the axis of the parent node
+				if let Some(Some(parent_node)) = self.nodes.get_mut(parent_node_index) {
+					if let LayoutNodeType::Container(ref mut container_data) = parent_node.node_type {
+						container_data.set_axis(direction.get_axis());
+					}
+				}
+
 				return Some(parent_node_index);
+			},
+
+			// ? Parent has more than 1 child, but is on the same axis
+			(_, true) => {
+				let active_node_index = self.active_node_index;
+				match direction {
+					LayoutDirection::Left | LayoutDirection::Up =>
+						self.move_index_next_to(index_of_node_to_add, active_node_index, &RelativePosition::Before),
+					LayoutDirection::Right | LayoutDirection::Down =>
+						self.move_index_next_to(index_of_node_to_add, active_node_index, &RelativePosition::After),
+				};
+				return Some(parent_node_index);
+			},
+
+			// ? Parent has more than 1 child, but is on a different axis
+			(_, false) => {
+				let active_node_index = self.active_node_index;
+
+				// ? Creates new container node to which we will add the active node and the new node
+				let new_container_index = self.add_new_container(direction.get_axis(), parent_node_index);
+
+				// ? Move the container next to the active node
+				self.move_index_next_to(new_container_index, active_node_index, &RelativePosition::After);
+
+				// ? Move the active node under the new container
+				self.move_index_under(active_node_index, new_container_index);
+
+				// ? Move the new node before or after the active node index (depending on the given direction)
+				let relative_position_where_to_move = match direction {
+					LayoutDirection::Left | LayoutDirection::Up => RelativePosition::Before,
+					LayoutDirection::Right | LayoutDirection::Down => RelativePosition::After,
+				};
+				self.move_index_next_to(index_of_node_to_add, active_node_index, &relative_position_where_to_move);
+				return Some(parent_node_index);
+			}
+			_ => {
+				// TODO: ERROR
 			}
 		}
 
@@ -528,8 +655,13 @@ impl Layout {
 
 	/// Sets the provided node index as the last activated node of the layout.
 	/// The last activated node will gain focus when the layout gains focus.
-	pub fn set_as_last_activated(&mut self, node_index: NodeIndex) {
+	fn set_as_last_activated(&mut self, node_index: NodeIndex) {
 		self.active_node_index = node_index;
+	}
+
+	/// Moves the provided index under the root node
+	fn move_index_under_root(&mut self, node_index: NodeIndex) -> Option<NodeIndex> {
+		self.move_index_under(node_index, INDEX_OF_ROOT)
 	}
 
 	/// Adds a window in the layout given it's associated xdg shell surface handle.
@@ -537,21 +669,30 @@ impl Layout {
 	/// Otherwise, it will be added as a child of the root.
 	pub fn add_window(&mut self, window: Window, direction: &LayoutDirection, set_as_last_activated: bool) -> Option<NodeIndex> {
 		let node_index = self.add_node_to_list(LayoutNode::new_window_node(window, INDEX_OF_ROOT));
-		let index_of_parent = self.add_index_to_parent_of_active_node(node_index);
+		let index_of_parent_option = if self.active_node_index == INDEX_OF_ROOT {
+			self.move_index_under_root(node_index)
+		} else {
+			self.move_index_relative_to_active_node(node_index, direction)
+		};
 
 		// ? If a parent was return, we set the window node as activated, else we undo the insertion.
-		if index_of_parent.is_none() {
+		if index_of_parent_option.is_none() {
 			self.remove_node(node_index);
 		} else {
 			if set_as_last_activated {
 				self.set_as_last_activated(node_index);
 			}
 			self.ordered_window_node_indices.push(node_index);
+			self.print_subtree_to_console(INDEX_OF_ROOT);
 		}
 
-		index_of_parent
+		index_of_parent_option
 	}
 
+	/// Adds a window in the layout given it's associated xdg shell surface handle.
+	/// The containing node will be a neighbor of the currently activated node if any.
+	/// Otherwise, it will be added as a child of the root.
+	/// Ends with a rebalancing of the layout tree from the top parent.
 	pub fn add_window_and_rebalance(&mut self, window: Window, direction: &LayoutDirection, set_as_last_activated: bool) {
 		let modified_parent_index = self.add_window(window, direction, set_as_last_activated).unwrap();
 		self.rebalance_subtree(modified_parent_index)
@@ -640,6 +781,10 @@ impl Layout {
 		// ? If the node index to remove is the last of the list, clear trailing holes.
 		self.nodes[node_index] = None;
 
+		if let Some(index_in_ordered_indices) = self.ordered_window_node_indices.iter().position(|&value| value == node_index) {
+			self.ordered_window_node_indices.remove(index_in_ordered_indices);
+		}
+
 		// ? If the removed node is the last of the list, clear trailing holes. Otherwise create one.
 		if node_index == self.nodes.len() - 1 {
 			self.clear_node_list_trailing_holes();
@@ -666,7 +811,8 @@ impl Layout {
 		}
 	}
 
-	// ? Returns all the node indices of the subtree from the provided root. If `only_leafs` is true, skips all container nodes.
+	/// Returns all the node indices of the subtree from the provided root.
+	/// If `only_leafs` is true, skips all container nodes.
 	pub fn get_indices_of_subtree(&self, subtree_root_index: NodeIndex, only_leafs: bool, exclude_root: bool) -> Vec<NodeIndex> {
 		let mut indices_of_subtree = vec![];
 
@@ -699,6 +845,7 @@ impl Layout {
 		indices_of_subtree
 	}
 
+	/// Returns a vector containing all the indices of the direct children of a node.
 	fn get_direct_children_indices_of(&self, node_index: NodeIndex) -> Vec<NodeIndex> {
 		let mut direct_children_of = Vec::new();
 		if let Some(Some(node)) = self.nodes.get(node_index) {
@@ -737,7 +884,7 @@ impl Layout {
 		let parent_node_index = self.get_parent_node_index_of(node_index).unwrap();
 
 		// ? If the node to remove has direct children, move them next to the node in the layout
-		self.move_direct_children_next_to(node_index, parent_node_index);
+		self.move_direct_children_next_to(node_index, node_index, &RelativePosition::After);
 
 		// ? Remove node
 		self.remove_node_from_list(node_index);
@@ -768,27 +915,28 @@ impl Layout {
 		index_of_container_to_rebalance
 	}
 
-	pub fn remove_subtree(&mut self, node_index: NodeIndex) -> Option<NodeIndex> {
+	/// Removes the subtree from the layout
+	pub fn remove_subtree(&mut self, subtree_root_index: NodeIndex) -> Option<NodeIndex> {
 		// ? Can't remove root node
-		if node_index == 0 {
+		if subtree_root_index == 0 {
 			error!("Tried to remove root index of layout!");
 			return None;
 		}
 
 		// ? Validate the provided node index
-		if !(0 < node_index && node_index < self.nodes.len()) || self.nodes[node_index].is_none() {
-			error!("Tried to remove invalid node index '{}' from layout!", node_index);
+		if !(0 < subtree_root_index && subtree_root_index < self.nodes.len()) || self.nodes[subtree_root_index].is_none() {
+			error!("Tried to remove invalid node index '{}' from layout!", subtree_root_index);
 			return None;
 		}
 
 		let mut index_of_container_to_rebalance = None;
 
 		// ? Remove all childrens if any
-		self.remove_all_children_of(node_index);
+		self.remove_all_children_of(subtree_root_index);
 
 		// ? Remove node (keep hook on parent index for further detach)
-		let parent_node_index = self.get_parent_node_index_of(node_index).unwrap();
-		self.remove_node_from_list(node_index);
+		let parent_node_index = self.get_parent_node_index_of(subtree_root_index).unwrap();
+		self.remove_node_from_list(subtree_root_index);
 
 		// ? Detach from parent and remove parent if less than 2 children
 		let mut should_remove_parent = false;
@@ -796,7 +944,7 @@ impl Layout {
 			if let LayoutNodeType::Container(ref mut container_node_data) = parent_node.node_type {
 
 				// ? Remove the child from the parent
-				container_node_data.remove(node_index);
+				container_node_data.remove(subtree_root_index);
 
 				// ? Mark parent as to be removed if < 2 children and is not the root
 				if container_node_data.len() < 2 && parent_node_index != 0 {
@@ -823,5 +971,59 @@ impl Layout {
 		} else {
 			false
 		}
+	}
+
+	/// Returns true if the provided node index points to a container node.
+	fn is_container_node(&self, node_index: NodeIndex) -> bool {
+		if let Some(Some(node)) = self.nodes.get(node_index) {
+			match node.node_type {
+				LayoutNodeType::Window(_) => return false,
+				LayoutNodeType::Container(_) => return true,
+			}
+		}
+
+		false
+	}
+
+	/// Recursive method to print the subtree to the console, takes the prefix to add to the line to print (level of the tree).
+	fn print_subtree_to_console_recur(&self, subtree_root_index: NodeIndex, prefix: String) {
+		let children_indices = self.get_direct_children_indices_of(subtree_root_index);
+		for (i, &child_index) in children_indices.iter().enumerate() {
+			let is_last_child = i == children_indices.len() - 1;
+			let is_container_node = self.is_container_node(child_index);
+			match (is_last_child, is_container_node) {
+				(false, false) => println!("{}├ W-{}", prefix, child_index),
+				(false, true) => {
+					let container_axis = self.get_axis_of(child_index).unwrap();
+					let arrow_character = match container_axis {
+						LayoutAxis::Vertical => "▼",
+						LayoutAxis::Horizontal => "►",
+					};
+					println!("{}├ C-{} {}", prefix, child_index, arrow_character);
+					self.print_subtree_to_console_recur(child_index, format!("{}│", prefix))
+				},
+				(true, false) => println!("{}└ W-{}", prefix, child_index),
+				(true, true) => {
+					let container_axis = self.get_axis_of(child_index).unwrap();
+					let arrow_character = match container_axis {
+						LayoutAxis::Vertical => "▼",
+						LayoutAxis::Horizontal => "►",
+					};
+					println!("{}└ C-{} {}", prefix, child_index, arrow_character);
+					self.print_subtree_to_console_recur(child_index, format!("{} ", prefix))
+				},
+			}
+		}
+	}
+
+	/// Prints the subtree from the provided root to the console.
+	pub fn print_subtree_to_console(&self, subtree_root_index: NodeIndex) {
+		let container_axis = self.get_axis_of(subtree_root_index).unwrap();
+		let arrow_character = match container_axis {
+			LayoutAxis::Vertical => "▼",
+			LayoutAxis::Horizontal => "►",
+		};
+		println!("C-{} {}", subtree_root_index, arrow_character);
+		self.print_subtree_to_console_recur(subtree_root_index, String::from(""));
 	}
 }

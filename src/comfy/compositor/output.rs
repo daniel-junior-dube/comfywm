@@ -60,7 +60,7 @@ pub struct OutputHandler;
 impl OutputHandler {
 	/// Renders the provided window data using the provided renderer.
 	fn render_window(&self, window: &Window, renderer: &mut Renderer) {
-		let Window { shell_handle, area } = window;
+		let Window { shell_handle, area: window_area } = window;
 		with_handles!([(shell: {shell_handle}), (surface: {shell.surface()})] => {
 			let (width, height) = surface.current_state().size();
 			let (render_width, render_height) = (
@@ -68,12 +68,12 @@ impl OutputHandler {
 				height * renderer.output.scale() as i32
 			);
 			let render_box = Area::new(
-				Origin::new(area.origin.x, area.origin.y),
+				Origin::new(window_area.origin.x, window_area.origin.y),
 				Size::new(render_width, render_height)
 			);
 			let transform = renderer.output.get_transform().invert();
 			let matrix = wlr_project_box(
-				render_box, // ! *area
+				*window_area,
 				transform,
 				0.0,
 				renderer.output.transform_matrix()

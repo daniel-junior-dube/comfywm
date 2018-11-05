@@ -131,6 +131,7 @@ pub struct ComfyKernel {
 	pub seat_handle: Option<WLRSeatHandle>,
 	pub current_mode: CompositorMode,
 	pub config: Config,
+	pub cursor_direction: LayoutDirection,
 }
 
 // TODO: handle main seat features like notifying keyboard/cursor events
@@ -151,6 +152,7 @@ impl ComfyKernel {
 			seat_handle: None,
 			current_mode: CompositorMode::NormalMode,
 			config: Config::load(),
+			cursor_direction: LayoutDirection::Right,
 		}
 	}
 
@@ -173,12 +175,20 @@ impl ComfyKernel {
 
 	/// Add the provided shell handle as a new window inside the active workspace
 	pub fn add_window_to_active_workspace(&mut self, shell_handle: WLRXdgV6ShellSurfaceHandle) {
+		let current_cursor_direction = self.cursor_direction.clone();
 		if let Some(OutputData { workspace, .. }) = self.output_data_map.get_mut(&self.active_output_name) {
 
 			// TODO: Handle manual direction change for insertion
-			workspace.window_layout.add_window_and_rebalance(Window::new_no_area(shell_handle), &LayoutDirection::Right, true);
+			workspace.window_layout.add_window_and_rebalance(Window::new_no_area(shell_handle), &current_cursor_direction, true);
 		} else {
 			error!("Failed to add window to output: {}", self.active_output_name);
+		}
+
+		match current_cursor_direction {
+			LayoutDirection::Right => self.cursor_direction = LayoutDirection::Down,
+			LayoutDirection::Down => self.cursor_direction = LayoutDirection::Left,
+			LayoutDirection::Left => self.cursor_direction = LayoutDirection::Up,
+			LayoutDirection::Up => self.cursor_direction = LayoutDirection::Right,
 		}
 
 		self.schedule_frame_for_output(&self.active_output_name);
