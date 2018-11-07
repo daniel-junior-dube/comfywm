@@ -16,11 +16,7 @@ What things you need to install the software and how to install them
 
 - Git (https://git-scm.com/)
 - Rust compiler and development tools (install using https://rustup.rs/)
-- cargo-make (https://sagiegurari.github.io/cargo-make/)
-	```
-	cargo install cargo-make
-	```
-
+- Make
 - wlroots dependencies (https://github.com/swaywm/wlroots):
 ```
 meson
@@ -48,7 +44,7 @@ x11-icccm (optional, for improved Xwayland introspection)
 xcb-xkb (optional, for improved keyboard handling on the X11 backend)
 ```
 
-### Installing
+### Installing developpement environement
 
 commands
 A step by step series of examples that tell you how to get a development env running
@@ -84,31 +80,10 @@ cargo install
 
 A step by step series of examples that tell you how to install Comfywm on your system
 
-**Arch Linux:**
 ```bash
-...
-```
-
-**Ubuntu:**
-```bash
-...
-```
-
-**Debian:**
-```bash
-...
-```
-
-**Using Cargo:**
-```bash
-# Pull and update the git submodules
-git submodule update --init --recursive
-
-# Build the application
-cargo build
-
-# If the build was successfull, call the install command
-cargo install
+# Build the application (this requires caro and make)
+make
+sudo make install
 ```
 
 ## Running the tests
