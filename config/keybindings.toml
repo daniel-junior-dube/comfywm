@@ -1,4 +1,34 @@
+# This config uses TOML.
+# Please refer to their documentation for more details : https://github.com/toml-lang/toml#user-content-comment
+
+
+# MODKEY
+# The modkey is used as a macro. Its main purpose is to be a central "control" key.
+# We recommend using a modifier key such as Control, Alt or Super (Super would be best).
+# To refer to the modkey you may use "$mod" in your bindings.
 modkey = "Control"
 
+# KEYBINDINGS
+# This is the main section of this configuration. Every entry in this section will be bind to a command.
+
+# KEYCODES
+# Comfy uses the XKB standard for the keys, you can use "xev" to find what keycodes you can use. Comfy uses
+# special classes for modifier keys, for example "Control" will be translated to "Control_L" and "Control_R".
+# You can still use "Control_L" in your configuration.
+
+# ENTRY
+# To add entry use this syntax:
+# "<keycode>(+<keycode>)*" = "<comfy_command> [<arguments>]"
+
 [keybindings]
-"$mod+Shift+Up" = "move_active_window_up"
+"$mod+Shift+J" = "move_active_window_up"
+"$mod+Shift+K" = "move_active_window_down"
+"$mod+Shift+H" = "move_active_window_left"
+"$mod+Shift+L" = "move_active_window_right"
+
+"$mod+H" = "move_focus_to_next_window"
+"$mod+L" = "move_focus_to_previous_window"
+
+"$mod+Return" = "exec weston-terminal"
+"$mod+1" = "exec firefox"
+"$mod+Escape" = "terminate"

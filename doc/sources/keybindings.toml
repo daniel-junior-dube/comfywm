@@ -1,0 +1,5 @@
+modkey = "Control"
+
+[keybindgins]
+"$mod+1" = "exec weston-terminal"
+"$mod+Escape" = "terminate"
