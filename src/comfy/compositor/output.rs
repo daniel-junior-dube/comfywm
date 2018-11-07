@@ -60,7 +60,10 @@ pub struct OutputHandler;
 impl OutputHandler {
 	/// Renders the provided window data using the provided renderer.
 	fn render_window(&self, window: &Window, renderer: &mut Renderer) {
-		let Window { shell_handle, area: window_area } = window;
+		let Window {
+			shell_handle,
+			area: window_area,
+		} = window;
 		with_handles!([(shell: {shell_handle}), (surface: {shell.surface()})] => {
 			let (width, height) = surface.current_state().size();
 			let (render_width, render_height) = (

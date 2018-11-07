@@ -177,11 +177,15 @@ impl ComfyKernel {
 	pub fn add_window_to_active_workspace(&mut self, shell_handle: WLRXdgV6ShellSurfaceHandle) {
 		let current_cursor_direction = self.cursor_direction.clone();
 		if let Some(OutputData { workspace, .. }) = self.output_data_map.get_mut(&self.active_output_name) {
-
 			// TODO: Handle manual direction change for insertion
-			workspace.window_layout.add_window_and_rebalance(Window::new_no_area(shell_handle), &current_cursor_direction, true);
+			match workspace
+				.window_layout
+				.add_window(Window::new_no_area(shell_handle), &current_cursor_direction, true, true) {
+					Err(e) => error!("{}", e),
+					Ok(_) => {}
+			}
 		} else {
-			error!("Failed to add window to output: {}", self.active_output_name);
+			error!("Failed to get output data for active output: {}", self.active_output_name);
 		}
 
 		match current_cursor_direction {
@@ -205,11 +209,19 @@ impl ComfyKernel {
 		let mut fallback_shell_handle_option = None;
 		let mut name_of_container_output = None;
 		for (output_name, output_data) in self.output_data_map.iter_mut() {
-			if output_data.workspace.window_layout.intersects_with_window_area(&shell_area) {
-				output_data.workspace.window_layout.remove_window_from_shell_handle_and_rebalance(&shell_handle);
-				fallback_shell_handle_option = output_data.workspace.window_layout.get_active_shell_handle();
-				name_of_container_output = Some(output_name.clone());
-				break;
+			if output_data.workspace.window_layout.intersects_with(&shell_area) {
+				match output_data
+					.workspace
+					.window_layout
+					.remove_window_from_shell_handle(&shell_handle, true)
+				{
+					Err(e) => error!("{}", e),
+					Ok(_) => {
+						fallback_shell_handle_option = output_data.workspace.window_layout.get_active_shell_handle();
+						name_of_container_output = Some(output_name.clone());
+						break;
+					}
+				}
 			}
 		}
 
