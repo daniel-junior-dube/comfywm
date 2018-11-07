@@ -1,4 +1,4 @@
-use std::collections::{HashMap, LinkedList};
+use std::collections::HashMap;
 
 use wlroots::key_events::KeyEvent as WLRKeyEvent;
 use wlroots::{
@@ -84,34 +84,6 @@ pub fn generate_default_compositor() -> WLRCompositor {
 }
 
 /*
-.##...##...####...#####...######.
-.###.###..##..##..##..##..##.....
-.##.#.##..##..##..##..##..####...
-.##...##..##..##..##..##..##.....
-.##...##...####...#####...######.
-.................................
-*/
-
-pub struct SuperModeState {
-	pub detailed_mode_is_enabled: bool,
-	pub xkb_key_set: XkbKeySet,
-}
-
-impl SuperModeState {
-	pub fn new() -> Self {
-		SuperModeState {
-			detailed_mode_is_enabled: false,
-			xkb_key_set: XkbKeySet::new(),
-		}
-	}
-}
-
-pub enum CompositorMode {
-	NormalMode,
-	SuperMode(SuperModeState),
-}
-
-/*
 ..####....####...##...##..######..##..##..##..##..######..#####...##..##..######..##.....
 .##..##..##..##..###.###..##.......####...##.##...##......##..##..###.##..##......##.....
 .##......##..##..##.#.##..####......##....####....####....#####...##.###..####....##.....
@@ -129,8 +101,10 @@ pub struct ComfyKernel {
 	pub output_data_map: HashMap<String, OutputData>,
 	pub workspace_pool: Vec<Workspace>,
 	pub seat_handle: Option<WLRSeatHandle>,
-	pub current_mode: CompositorMode,
+	pub x: i32,
+	pub y: i32,
 	pub config: Config,
+	pub currently_pressed_keys: XkbKeySet,
 	pub cursor_direction: LayoutDirection,
 }
 
@@ -150,8 +124,10 @@ impl ComfyKernel {
 			output_data_map: HashMap::<String, OutputData>::new(),
 			workspace_pool: vec![],
 			seat_handle: None,
-			current_mode: CompositorMode::NormalMode,
+			x: 0,
+			y: 0,
 			config: Config::load(),
+			currently_pressed_keys: XkbKeySet::new(),
 			cursor_direction: LayoutDirection::Right,
 		}
 	}
@@ -287,6 +263,18 @@ impl ComfyKernel {
 		} else {
 			None
 		}
+	}
+
+	pub fn notify_keyboard(&mut self, key_event: &WLRKeyEvent) {
+		let seat_handle = self.seat_handle.clone().unwrap();
+		with_handles!([(seat: {seat_handle})] => {
+			debug!("Notifying seat of keypress: time_msec: '{:?}' keycode: '{}' key_state: '{}'", key_event.time_msec(), key_event.keycode(), key_event.key_state() as u32);
+			seat.keyboard_notify_key(
+				key_event.time_msec(),
+				key_event.keycode(),
+				key_event.key_state() as u32
+			);
+		}).unwrap();
 	}
 }
 

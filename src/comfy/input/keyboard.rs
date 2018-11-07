@@ -11,7 +11,6 @@ use std::iter::FromIterator;
 
 use compositor::commands::interpreter::CommandInterpreter;
 use compositor::ComfyKernel;
-use compositor::{CompositorMode, SuperModeState};
 
 /*
 .##..##..######..##..##..#####....####....####...#####...#####..
@@ -24,71 +23,34 @@ use compositor::{CompositorMode, SuperModeState};
 
 pub struct KeyboardHandler;
 impl KeyboardHandler {
-	// NORMAL MODE
-	fn handle_normal_mode_key_press(
-		&mut self,
-		comfy_kernel: &mut ComfyKernel,
-		_: WLRKeyboardHandle,
-		key_event: &WLRKeyEvent,
-	) {
+	fn handle_key_press(&mut self, comfy_kernel: &mut ComfyKernel, key_event: &WLRKeyEvent) {
+		let key_set = XkbKeySet::from_vec_without_check(&key_event.pressed_keys());
+
+		comfy_kernel.currently_pressed_keys.set_to_union(&key_set);
+
 		if comfy_kernel
 			.config
 			.keybindings
-			.modkey
-			.contains(&XkbKeySet::from_vec_without_check(&key_event.pressed_keys()))
+			.bindings
+			.contains_key(&comfy_kernel.currently_pressed_keys.clone())
 		{
-			comfy_kernel.current_mode = CompositorMode::SuperMode(SuperModeState::new());
+			let command = comfy_kernel
+				.config
+				.keybindings
+				.bindings
+				.get(&comfy_kernel.currently_pressed_keys.clone())
+				.unwrap()
+				.clone();
+			CommandInterpreter::execute(&command, comfy_kernel);
+		} else {
+			comfy_kernel.notify_keyboard(key_event);
 		}
 	}
 
-	fn handle_normal_mode_key_release(&mut self, _: &mut ComfyKernel, _: WLRKeyboardHandle, _: &WLRKeyEvent) {}
-
-	// SUPER MODE
-	fn handle_super_mode_key_press(
-		&mut self,
-		comfy_kernel: &mut ComfyKernel,
-		_: WLRKeyboardHandle,
-		key_event: &WLRKeyEvent,
-	) {
-		let xkb_keyset_option = match comfy_kernel.current_mode {
-			CompositorMode::NormalMode => None,
-			CompositorMode::SuperMode(ref mut super_mode_state) => {
-				let key_set = XkbKeySet::from_vec_without_check(&key_event.pressed_keys());
-				super_mode_state.xkb_key_set.set_to_union(&key_set);
-				Some(super_mode_state.xkb_key_set.clone())
-			}
-		};
-
-		if let Some(xkb_keysyms_set) = xkb_keyset_option {
-			debug!("super_mode_state.xkb_key_set.xkb_keysyms_set: {:?}", xkb_keysyms_set);
-			if let Some(command) = comfy_kernel.command_for_keyset(&xkb_keysyms_set) {
-				CommandInterpreter::execute(&command, comfy_kernel);
-			}
-		}
-	}
-
-	fn handle_super_mode_key_release(
-		&mut self,
-		comfy_kernel: &mut ComfyKernel,
-		_keyboard: WLRKeyboardHandle,
-		key_event: &WLRKeyEvent,
-	) {
-		let key_set = XkbKeySet::from_vec_without_check(&key_event.pressed_keys());
-		match comfy_kernel.current_mode {
-			CompositorMode::NormalMode => {}
-			CompositorMode::SuperMode(ref mut super_mode_state) => {
-				// ? Interprets the pressed keys as a xkb_key_set
-				super_mode_state.xkb_key_set.set_to_difference(&key_set);
-				debug!(
-					"super_mode_state.xkb_key_set.keysyms_set: {:?}",
-					super_mode_state.xkb_key_set.keysyms_set
-				);
-			}
-		}
-
-		if comfy_kernel.config.keybindings.modkey.contains(&key_set) {
-			comfy_kernel.current_mode = CompositorMode::NormalMode;
-		}
+	fn handle_key_release(&mut self, comfy_kernel: &mut ComfyKernel, key_event: &WLRKeyEvent) {
+			let key_set = XkbKeySet::from_vec_without_check(&key_event.pressed_keys());
+			comfy_kernel.currently_pressed_keys.set_to_difference(&key_set);
+			comfy_kernel.notify_keyboard(key_event);
 	}
 }
 impl WLRKeyboardHandler for KeyboardHandler {
@@ -109,33 +71,15 @@ impl WLRKeyboardHandler for KeyboardHandler {
 		);
 	}
 
-	fn on_key(&mut self, compositor: WLRCompositorHandle, keyboard_handle: WLRKeyboardHandle, key_event: &WLRKeyEvent) {
-		dehandle!(
-			@compositor = {compositor};
+	fn on_key(&mut self, compositor: WLRCompositorHandle, _: WLRKeyboardHandle, key_event: &WLRKeyEvent) {
+		with_handles!([(compositor: {compositor})] => {
 			let comfy_kernel: &mut ComfyKernel = compositor.into();
-
-			// ? Mode specific key handling
-			match comfy_kernel.current_mode {
-				CompositorMode::NormalMode => {
-					if key_event.key_state() == WLR_KEY_PRESSED {
-						self.handle_normal_mode_key_press(comfy_kernel, keyboard_handle, key_event);
-					} else {
-						self.handle_normal_mode_key_release(comfy_kernel, keyboard_handle, key_event);
-					}
-
-					// ? Send the key to the active window
-					comfy_kernel.keyboard_notify_key(key_event);
-				},
-				CompositorMode::SuperMode(_) => {
-					if key_event.key_state() == WLR_KEY_PRESSED {
-						self.handle_super_mode_key_press(comfy_kernel, keyboard_handle, key_event);
-					} else {
-						self.handle_super_mode_key_release(comfy_kernel, keyboard_handle, key_event);
-					}
-				}
-			};
-			()
-		);
+			if key_event.key_state() == WLR_KEY_PRESSED {
+				self.handle_key_press(comfy_kernel, key_event);
+			} else {
+				self.handle_key_release(comfy_kernel, key_event);
+			}
+		}).unwrap();
 	}
 }
 
@@ -184,22 +128,28 @@ impl XkbKeySet {
 		})
 	}
 
+	// Set the the keysyms_set as the difference of the current one with the provided one
+	pub fn set_to_difference(&mut self, key_set: &XkbKeySet) {
+		self.keysyms_set = self.keysyms_set
+				.difference(&key_set.keysyms_set)
+				.cloned()
+				.collect();
+	}
+
+	// Set the the keysyms_set as the difference of the current one with the provided one
+	pub fn set_to_union(&mut self, key_set: &XkbKeySet) {
+		self.keysyms_set = self.keysyms_set
+				.union(&key_set.keysyms_set)
+				.cloned()
+				.collect();
+	}
+
 	/// Use the provided vector of xkb key codes to build an XkbKeySet which contains a set of xkb keys (u32).
 	/// Doesn't check if the vec is empty or contains duplicates or invalid keysyms
 	pub fn from_vec_without_check(xkb_key_codes: &[u32]) -> XkbKeySet {
 		XkbKeySet {
 			keysyms_set: HashSet::from_iter(xkb_key_codes.iter().cloned()),
 		}
-	}
-
-	// Set the the keysyms_set as the difference of the current one with the provided one
-	pub fn set_to_difference(&mut self, key_set: &XkbKeySet) {
-		self.keysyms_set = self.keysyms_set.difference(&key_set.keysyms_set).cloned().collect();
-	}
-
-	// Set the the keysyms_set as the difference of the current one with the provided one
-	pub fn set_to_union(&mut self, key_set: &XkbKeySet) {
-		self.keysyms_set = self.keysyms_set.union(&key_set.keysyms_set).cloned().collect();
 	}
 }
 
