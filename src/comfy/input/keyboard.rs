@@ -48,9 +48,9 @@ impl KeyboardHandler {
 	}
 
 	fn handle_key_release(&mut self, comfy_kernel: &mut ComfyKernel, key_event: &WLRKeyEvent) {
-			let key_set = XkbKeySet::from_vec_without_check(&key_event.pressed_keys());
-			comfy_kernel.currently_pressed_keys.set_to_difference(&key_set);
-			comfy_kernel.notify_keyboard(key_event);
+		let key_set = XkbKeySet::from_vec_without_check(&key_event.pressed_keys());
+		comfy_kernel.currently_pressed_keys.set_to_difference(&key_set);
+		comfy_kernel.notify_keyboard(key_event);
 	}
 }
 impl WLRKeyboardHandler for KeyboardHandler {
@@ -130,18 +130,12 @@ impl XkbKeySet {
 
 	// Set the the keysyms_set as the difference of the current one with the provided one
 	pub fn set_to_difference(&mut self, key_set: &XkbKeySet) {
-		self.keysyms_set = self.keysyms_set
-				.difference(&key_set.keysyms_set)
-				.cloned()
-				.collect();
+		self.keysyms_set = self.keysyms_set.difference(&key_set.keysyms_set).cloned().collect();
 	}
 
 	// Set the the keysyms_set as the difference of the current one with the provided one
 	pub fn set_to_union(&mut self, key_set: &XkbKeySet) {
-		self.keysyms_set = self.keysyms_set
-				.union(&key_set.keysyms_set)
-				.cloned()
-				.collect();
+		self.keysyms_set = self.keysyms_set.union(&key_set.keysyms_set).cloned().collect();
 	}
 
 	/// Use the provided vector of xkb key codes to build an XkbKeySet which contains a set of xkb keys (u32).
