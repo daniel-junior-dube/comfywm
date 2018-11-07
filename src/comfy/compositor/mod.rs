@@ -180,12 +180,16 @@ impl ComfyKernel {
 			// TODO: Handle manual direction change for insertion
 			match workspace
 				.window_layout
-				.add_window(Window::new_no_area(shell_handle), &current_cursor_direction, true, true) {
-					Err(e) => error!("{}", e),
-					Ok(_) => {}
+				.add_window(Window::new_no_area(shell_handle), &current_cursor_direction, true, true)
+			{
+				Err(e) => error!("{}", e),
+				Ok(_) => {}
 			}
 		} else {
-			error!("Failed to get output data for active output: {}", self.active_output_name);
+			error!(
+				"Failed to get output data for active output: {}",
+				self.active_output_name
+			);
 		}
 
 		match current_cursor_direction {

@@ -369,11 +369,15 @@ impl Layout {
 		set_as_last_activated: bool,
 		rebalance_after_insertion: bool,
 	) -> Result<(), String> {
-		let index_of_new_node = self.layout_tree.add_new_empty_node(LayoutAxis::Horizontal, INDEX_OF_ROOT);
+		let index_of_new_node = self
+			.layout_tree
+			.add_new_empty_node(LayoutAxis::Horizontal, INDEX_OF_ROOT);
 		let index_of_parent_option = if self.layout_tree.active_node_index == INDEX_OF_ROOT {
 			self.layout_tree.move_index_under_root(index_of_new_node)
 		} else {
-			self.layout_tree.move_index_relative_to_active_node(index_of_new_node, direction)
+			self
+				.layout_tree
+				.move_index_relative_to_active_node(index_of_new_node, direction)
 		};
 
 		// ? If a parent was return, we set the window node as activated, else we undo the insertion.
@@ -699,15 +703,12 @@ impl RegionBasedKAryLayoutTree {
 		let axis_of_parent = self.get_axis_of(parent_node_index).unwrap();
 		let nb_children_of_parent = self.get_direct_children_indices_of(parent_node_index).len();
 		match (nb_children_of_parent, direction.get_axis() == axis_of_parent) {
-
 			// ? Parent has only 0 or 1 children, we don't care about the axis since where going to change it
 			(0...1, _) => {
 				if active_node_is_root {
-
 					// ? Active node is root, just add new index under it
 					self.move_index_under_root(index_of_node_to_add);
 				} else {
-
 					// ? Move the new node before or after the active node (depending on the given direction)
 					let active_node_index = self.active_node_index;
 					match direction {
