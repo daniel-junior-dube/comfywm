@@ -157,7 +157,7 @@ impl ComfyKernel {
 			// TODO: Handle manual direction change for insertion
 			match workspace
 				.window_layout
-				.add_window(Window::new_no_area(shell_handle), &current_cursor_direction, true, true)
+				.add_window(Window::new_empty_area(shell_handle), &current_cursor_direction, true, true)
 			{
 				Err(e) => error!("{}", e),
 				Ok(_) => {}
