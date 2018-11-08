@@ -30,6 +30,7 @@ use input::keyboard::XkbKeySet;
 use input::seat::SeatHandler;
 use input::InputManagerHandler;
 use layout::LayoutDirection;
+use utils::handle_helper::shell_handle_helper;
 
 /*
 ..####....####...##...##..#####....####....####...######..######...####...#####..
@@ -178,14 +179,9 @@ impl ComfyKernel {
 		self.schedule_frame_for_output(&self.active_output_name);
 	}
 
-	/// Returns the area (geometry) of the shell of the provided shell handle
-	pub fn get_area_from_shell_handle(&self, shell_handle: &WLRXdgV6ShellSurfaceHandle) -> Area {
-		shell_handle.run(|shell| shell.geometry()).unwrap()
-	}
-
 	/// Finds and removes the window bound to the provided shell handle from the containing output.
 	pub fn find_and_remove_window(&mut self, shell_handle: WLRXdgV6ShellSurfaceHandle) {
-		let shell_area = self.get_area_from_shell_handle(&shell_handle);
+		let shell_area = shell_handle_helper::get_shell_area(&shell_handle);
 		let mut fallback_shell_handle_option = None;
 		let mut name_of_container_output = None;
 		for (output_name, output_data) in self.output_data_map.iter_mut() {
