@@ -238,19 +238,6 @@ impl ComfyKernel {
 		);
 	}
 
-	/// Sends a keyboard notification of the key event to the active shell.
-	pub fn keyboard_notify_key(&self, key_event: &WLRKeyEvent) {
-		let seat_handle = self.seat_handle.clone().unwrap();
-		with_handles!([(seat: {seat_handle})] => {
-			debug!("Notifying seat of keypress: time_msec: '{:?}' keycode: '{}' key_state: '{}'", key_event.time_msec(), key_event.keycode(), key_event.key_state() as u32);
-			seat.keyboard_notify_key(
-				key_event.time_msec(),
-				key_event.keycode(),
-				key_event.key_state() as u32
-			);
-		}).unwrap();
-	}
-
 	/// Returns the command associated with the provided key_set if any.
 	pub fn command_for_keyset(&self, key_set: &XkbKeySet) -> Option<Command> {
 		if self.config.keybindings.bindings.contains_key(&key_set) {

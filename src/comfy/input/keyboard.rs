@@ -28,19 +28,7 @@ impl KeyboardHandler {
 
 		comfy_kernel.currently_pressed_keys.set_to_union(&key_set);
 
-		if comfy_kernel
-			.config
-			.keybindings
-			.bindings
-			.contains_key(&comfy_kernel.currently_pressed_keys.clone())
-		{
-			let command = comfy_kernel
-				.config
-				.keybindings
-				.bindings
-				.get(&comfy_kernel.currently_pressed_keys.clone())
-				.unwrap()
-				.clone();
+		if let Some(command) = comfy_kernel.command_for_keyset(&comfy_kernel.currently_pressed_keys) {
 			CommandInterpreter::execute(&command, comfy_kernel);
 		} else {
 			comfy_kernel.notify_keyboard(key_event);
