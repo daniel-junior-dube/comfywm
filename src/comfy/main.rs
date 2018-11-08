@@ -27,11 +27,14 @@ extern crate serde_derive;
 extern crate log;
 extern crate log4rs;
 
+use std::env;
+
 use wlroots::utils::{init_logging as wlr_init_logging, WLR_DEBUG};
 
 mod compositor;
 mod config;
 mod input;
+mod layout;
 mod utils;
 
 use compositor::generate_default_compositor;
@@ -48,6 +51,8 @@ use utils::logger::{generate_log4rs_config, generate_wlroots_rs_log_callback};
 */
 
 fn main() {
+	// ? WIP: Required for x application to start, will be dynamically set if we wish to keep xwayland
+	// TODO: env::set_var("DISPLAY", ":1");
 	let log4rs_config = generate_log4rs_config();
 	// ? Use this handle to edit logging at runtime
 	let _handle = log4rs::init_config(log4rs_config).unwrap();
