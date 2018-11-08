@@ -240,7 +240,6 @@ impl LayoutNode {
 		siblings_weight_sum: f32,
 		previous_siblings_offset: i32,
 	) -> bool {
-
 		// ? Change area based on parent and siblings changes
 		let new_area = match parent_axis {
 			LayoutAxis::Horizontal => {
