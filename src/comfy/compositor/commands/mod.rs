@@ -1,3 +1,9 @@
+use std::str::FromStr;
+
+pub mod interpreter;
+
+use common::command_type::CommandType;
+
 /*
 ..####....####...##...##..##...##...####...##..##..#####....####..
 .##..##..##..##..###.###..###.###..##..##..###.##..##..##..##.....
@@ -6,10 +12,6 @@
 ..####....####...##...##..##...##..##..##..##..##..#####....####..
 ..................................................................
 */
-
-pub mod interpreter;
-
-use common::command_type::CommandType;
 
 #[derive(Clone)]
 pub struct Command {
@@ -39,7 +41,7 @@ impl Command {
 			return Err("The command is empty.".to_string());
 		}
 
-		let command_type = CommandType::from_str(splitted_str[0])?;
+		let command_type: CommandType = CommandType::from_str(splitted_str[0]).unwrap();
 
 		let args_str = splitted_str
 			.split_off(1)
