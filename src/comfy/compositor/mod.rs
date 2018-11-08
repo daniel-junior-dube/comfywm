@@ -155,10 +155,12 @@ impl ComfyKernel {
 		let current_cursor_direction = self.cursor_direction.clone();
 		if let Some(OutputData { workspace, .. }) = self.output_data_map.get_mut(&self.active_output_name) {
 			// TODO: Handle manual direction change for insertion
-			match workspace
-				.window_layout
-				.add_window(Window::new_empty_area(shell_handle), &current_cursor_direction, true, true)
-			{
+			match workspace.window_layout.add_window(
+				Window::new_empty_area(shell_handle),
+				&current_cursor_direction,
+				true,
+				true,
+			) {
 				Err(e) => error!("{}", e),
 				Ok(_) => {}
 			}
