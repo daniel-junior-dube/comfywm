@@ -51,7 +51,8 @@ impl WLRPointerHandler for PointerHandler {
 			let keyboard = comfy_kernel.keyboard_handle.clone().unwrap();
 			@seat = {seat};
 			@keyboard = {keyboard};
-			if comfy_kernel.shells.len() > 0 {
+			// TODO: Verify each output data to find which layout intersects with the point
+			/* if comfy_kernel.shells.len() > 0 {
 				comfy_kernel.shells[comfy_kernel.shells.len()-1].run(
 					|shell| {
 						let surface = shell.surface();
@@ -71,7 +72,7 @@ impl WLRPointerHandler for PointerHandler {
 						}).unwrap();
 					}
 				).unwrap();
-			};
+			}; */
 			()
 		);
 	}
