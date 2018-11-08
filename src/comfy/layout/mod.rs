@@ -259,15 +259,12 @@ impl LayoutNode {
 				)
 			}
 		};
-
-		let area_changed = if self.area != new_area {
+		if self.area != new_area {
 			self.area = new_area;
 			true
 		} else {
 			false
-		};
-
-		area_changed
+		}
 	}
 }
 
