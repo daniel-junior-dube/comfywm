@@ -259,15 +259,12 @@ impl LayoutNode {
 				)
 			}
 		};
-
-		let area_changed = if self.area != new_area {
+		if self.area != new_area {
 			self.area = new_area;
 			true
 		} else {
 			false
-		};
-
-		area_changed
+		}
 	}
 }
 
@@ -312,6 +309,7 @@ impl Layout {
 		self.layout_tree.update_area(area)
 	}
 
+	/// Calls a rebalance of the layout tree data structure.
 	pub fn rebalance_tree(&mut self) {
 		self.layout_tree.rebalance();
 	}
@@ -349,6 +347,7 @@ impl Layout {
 		})
 	}
 
+	/// Rebalances the layout tree structure and applies the new sizes to each window.
 	fn rebalance(&mut self) {
 		let indices_of_resized_nodes = self.layout_tree.rebalance();
 		for index_of_resized_node in indices_of_resized_nodes.iter() {
@@ -669,6 +668,7 @@ impl RegionBasedKAryLayoutTree {
 		None
 	}
 
+	/// Returns the axis of the node associated with the provided node index.
 	fn get_axis_of(&self, node_index: NodeIndex) -> Option<LayoutAxis> {
 		if let Some(Some(node)) = self.nodes.get(node_index) {
 			Some(node.axis.clone())

@@ -30,6 +30,7 @@ use input::keyboard::XkbKeySet;
 use input::seat::SeatHandler;
 use input::InputManagerHandler;
 use layout::LayoutDirection;
+use utils::handle_helper::shell_handle_helper;
 
 /*
 ..####....####...##...##..#####....####....####...######..######...####...#####..
@@ -154,10 +155,12 @@ impl ComfyKernel {
 		let current_cursor_direction = self.cursor_direction.clone();
 		if let Some(OutputData { workspace, .. }) = self.output_data_map.get_mut(&self.active_output_name) {
 			// TODO: Handle manual direction change for insertion
-			match workspace
-				.window_layout
-				.add_window(Window::new_no_area(shell_handle), &current_cursor_direction, true, true)
-			{
+			match workspace.window_layout.add_window(
+				Window::new_empty_area(shell_handle),
+				&current_cursor_direction,
+				true,
+				true,
+			) {
 				Err(e) => error!("{}", e),
 				Ok(_) => {}
 			}
@@ -178,14 +181,9 @@ impl ComfyKernel {
 		self.schedule_frame_for_output(&self.active_output_name);
 	}
 
-	/// Returns the area (geometry) of the shell of the provided shell handle
-	pub fn get_area_from_shell_handle(&self, shell_handle: &WLRXdgV6ShellSurfaceHandle) -> Area {
-		shell_handle.run(|shell| shell.geometry()).unwrap()
-	}
-
 	/// Finds and removes the window bound to the provided shell handle from the containing output.
 	pub fn find_and_remove_window(&mut self, shell_handle: WLRXdgV6ShellSurfaceHandle) {
-		let shell_area = self.get_area_from_shell_handle(&shell_handle);
+		let shell_area = shell_handle_helper::get_shell_area(&shell_handle);
 		let mut fallback_shell_handle_option = None;
 		let mut name_of_container_output = None;
 		for (output_name, output_data) in self.output_data_map.iter_mut() {
@@ -240,19 +238,6 @@ impl ComfyKernel {
 			).unwrap();
 			()
 		);
-	}
-
-	/// Sends a keyboard notification of the key event to the active shell.
-	pub fn keyboard_notify_key(&self, key_event: &WLRKeyEvent) {
-		let seat_handle = self.seat_handle.clone().unwrap();
-		with_handles!([(seat: {seat_handle})] => {
-			debug!("Notifying seat of keypress: time_msec: '{:?}' keycode: '{}' key_state: '{}'", key_event.time_msec(), key_event.keycode(), key_event.key_state() as u32);
-			seat.keyboard_notify_key(
-				key_event.time_msec(),
-				key_event.keycode(),
-				key_event.key_state() as u32
-			);
-		}).unwrap();
 	}
 
 	/// Returns the command associated with the provided key_set if any.

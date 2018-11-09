@@ -22,7 +22,7 @@ impl Window {
 		Window { shell_handle, area }
 	}
 
-	pub fn new_no_area(shell_handle: WLRXdgV6ShellSurfaceHandle) -> Self {
+	pub fn new_empty_area(shell_handle: WLRXdgV6ShellSurfaceHandle) -> Self {
 		let area = Area::new(Origin::new(0, 0), Size::new(0, 0));
 		Window { shell_handle, area }
 	}

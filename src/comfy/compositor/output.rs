@@ -117,19 +117,8 @@ impl WLROutputHandler for OutputHandler {
 
 	/// WIP
 	/// Called every time the output frame is updated.
-	fn on_transform(&mut self, compositor_handle: WLRCompositorHandle, output_handle: WLROutputHandle) {
-		with_handles!([(compositor: {compositor_handle}), (output: {output_handle})] => {
-			let output_name = output.name().clone();
-			let comfy_kernel: &mut ComfyKernel = compositor.data.downcast_mut().unwrap();
-			if let Some(OutputData {workspace, ..}) = comfy_kernel.output_data_map.get(&output_name) {
-				let mut output_layout_handle = &comfy_kernel.output_layout_handle;
-				with_handles!([(output_layout: {output_layout_handle})] => {
-					// TODO: If window_layout area doesn't intersect the output, refresh the layout
-					let render_box = workspace.window_layout.area().unwrap();
-					let output_layout_box = output_layout.get_box(None);
-				}).unwrap();
-			}
-		}).unwrap()
+	fn on_transform(&mut self, _: WLRCompositorHandle, _: WLROutputHandle) {
+		//println!("on_transform");
 	}
 
 	/// Called every time the output mode changes.
@@ -142,13 +131,12 @@ impl WLROutputHandler for OutputHandler {
 			if let Some(output_data) = output_data_map.get_mut(&output.name()) {
 				let (x, y) = output.layout_space_pos();
 				let (width, height) = output.effective_resolution();
-				let updated_windows_with_area = output_data.workspace.window_layout.update_area_and_rebalance(
+				output_data.workspace.window_layout.update_area_and_rebalance(
 					Area::new(
 						Origin::new(x, y),
 						Size::new(width, height)
 					)
 				);
-				// TODO: IMPORTANT! - handle updated_windows_with_area
 			}
 		);
 	}
@@ -180,14 +168,9 @@ impl WLROutputHandler for OutputHandler {
 			@output = {output_handle};
 			let comfy_kernel: &mut ComfyKernel = compositor.data.downcast_mut().unwrap();
 			let output_name = output.name();
-			println!("Output destroyed, named: {}", output_name);
-			// TODO: Transfer data from destroyed output data to main output data
-			/*{
-				let destroyed_output_data = comfy_kernel.output_data_map.get(&output_name);
-				let main_output_data
-			} */
+			info!("Output destroyed, named: {}", output_name);
 			comfy_kernel.output_data_map.remove(&output_name);
-			println!("Removed OutputData in from data_map! Nb of total entries: {}", comfy_kernel.output_data_map.len());
+			debug!("Removed OutputData from data_map! Nb of total entries: {}", comfy_kernel.output_data_map.len());
 			()
 		);
 	}
