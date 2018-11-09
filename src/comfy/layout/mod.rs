@@ -184,11 +184,6 @@ impl LayoutNode {
 		self.children_indices.is_empty()
 	}
 
-	/// Returns true if the node intersects the given area.
-	pub fn intersects(&self, area: &Area) -> bool {
-		self.area.intersection(*area) != IntersectionResult::NoIntersection
-	}
-
 	/// Returns the number of child contained inside the container.
 	fn len(&self) -> usize {
 		self.children_indices.len()
@@ -334,17 +329,35 @@ impl Layout {
 		}
 	}
 
+	/// Returns true if the provided shell is contained inside the layout.
+	pub fn contains_shell_handle(&self, shell_handle: &WLRXdgV6ShellSurfaceHandle) -> bool {
+		self.index_of_node_containing_shell_handle(shell_handle).is_some()
+	}
+
 	/// Returns the index of the node containing the provided xdg shell surface handle.
 	pub fn index_of_node_containing_shell_handle(&self, shell_handle: &WLRXdgV6ShellSurfaceHandle) -> Option<NodeIndex> {
-		let shell_handle_area = shell_handle_helper::get_shell_area(shell_handle);
-		let intersecting_node_indices = self.layout_tree.indices_of_intersecting_leaves(&shell_handle_area);
-		intersecting_node_indices.iter().cloned().find(|node_index| {
-			if let Some(window) = self.leaf_index_to_windows_map.get(&node_index) {
-				window.shell_handle == *shell_handle
-			} else {
-				false
+		let mut node_index_option = None;
+		for (&node_index, window) in self.leaf_index_to_windows_map.iter() {
+			if window.shell_handle == *shell_handle {
+				node_index_option = Some(node_index);
+				break;
 			}
-		})
+		}
+		node_index_option
+	}
+
+	/// Returns the shell_handle of the leaf node closest to the active one in a specific direction
+	pub fn get_shell_handle_relative_to_active_node(&self, direction: &LayoutDirection) -> Option<WLRXdgV6ShellSurfaceHandle> {
+		if self.layout_tree.active_node_index == INDEX_OF_ROOT {
+			None
+		} else {
+			if let Some(closest_leaf_index) = self.layout_tree.find_closest_leaf(self.layout_tree.active_node_index, direction) {
+				let window = self.leaf_index_to_windows_map.get(&closest_leaf_index).unwrap();
+				Some(window.shell_handle.clone())
+			} else {
+				None
+			}
+		}
 	}
 
 	/// Rebalances the layout tree structure and applies the new sizes to each window.
@@ -427,9 +440,11 @@ impl Layout {
 		Ok(())
 	}
 
-	/// Returns true if the layout contains the window index.
-	pub fn intersects_with(&self, area: &Area) -> bool {
-		self.layout_tree.intersects_with(area)
+	/// Finds the node index associated with the shell_handle and sets it as the last activated node
+	pub fn set_as_last_activated(&mut self, shell_handle: &WLRXdgV6ShellSurfaceHandle) {
+		if let Some(node_index) = self.index_of_node_containing_shell_handle(shell_handle) {
+			self.layout_tree.set_as_last_activated(node_index);
+		}
 	}
 }
 
@@ -787,23 +802,29 @@ impl RegionBasedKAryLayoutTree {
 	/// Return the index of the node that would be the active one in the case of the active node being deleted.
 	pub fn find_fallback_node_index(&self, node_index: NodeIndex) -> NodeIndex {
 		if let Some(parent_node_index) = self.get_parent_node_index_of(node_index) {
+
 			// ? Use left sibling or right sibling as fallback
+			let mut siblings_index_option = None;
 			if let Some(Some(ref parent_node)) = self.nodes.get(parent_node_index) {
 				let index_of_child = parent_node.index_of(node_index).unwrap();
 
 				// ? Left sibling
 				if index_of_child > 0 {
-					if let Some(previous_sibling_index) = parent_node.children_indices.get(index_of_child - 1) {
-						return *previous_sibling_index;
+					if let Some(&previous_sibling_index) = parent_node.children_indices.get(index_of_child - 1) {
+						siblings_index_option = Some(previous_sibling_index);
 					}
 				}
 
 				// ? Right sibling
-				if index_of_child < parent_node.children_indices.len() - 1 {
-					if let Some(next_sibling_index) = parent_node.children_indices.get(index_of_child + 1) {
-						return *next_sibling_index;
+				if siblings_index_option.is_none() && index_of_child < parent_node.children_indices.len() - 1 {
+					if let Some(&next_sibling_index) = parent_node.children_indices.get(index_of_child + 1) {
+						siblings_index_option = Some(next_sibling_index);
 					}
 				}
+			}
+
+			if let Some(sibling_index) = siblings_index_option {
+				return self.get_limit_leaf_of_subtree(sibling_index, &RelativePosition::Before).unwrap();
 			}
 
 			// ? If parent has no other child and parent is root_node
@@ -847,6 +868,7 @@ impl RegionBasedKAryLayoutTree {
 	/// If the node is the currently active one, assign the active to the fallback node.
 	/// Also removes trailing holes dynamically if the removed node is the last one in the list.
 	fn remove_node_from_list(&mut self, node_index: NodeIndex) -> Result<(), String> {
+
 		// ? Check that the node is valid
 		if !self.node_exists(node_index) {
 			return Err("Tried to remove unexistant node index from the list".to_string());
@@ -937,34 +959,6 @@ impl RegionBasedKAryLayoutTree {
 		}
 	}
 
-	/// Returns true if the layout contains the window index.
-	pub fn intersects_with(&self, area: &Area) -> bool {
-		if let Some(Some(root_node)) = self.nodes.get(0) {
-			root_node.area.intersection(*area) != IntersectionResult::NoIntersection
-		} else {
-			false
-		}
-	}
-
-	/// Returns a vector containing the indices of all the leaves that intersects with the provided area.
-	pub fn indices_of_intersecting_leaves(&self, area: &Area) -> Vec<NodeIndex> {
-		let mut intersecting_leaves = Vec::new();
-		let mut indices_of_nodes_to_check = vec![INDEX_OF_ROOT];
-		while let Some(index_of_node_to_check) = indices_of_nodes_to_check.pop() {
-			if let Some(Some(node_to_check)) = self.nodes.get(index_of_node_to_check) {
-				if node_to_check.is_leaf() && node_to_check.intersects(area) {
-					intersecting_leaves.push(index_of_node_to_check);
-				} else {
-					node_to_check
-						.children_indices
-						.iter()
-						.for_each(|&child_index| indices_of_nodes_to_check.push(child_index))
-				}
-			}
-		}
-		intersecting_leaves
-	}
-
 	/// Returns true if the provided node index points to a container node.
 	fn is_leaf_node(&self, node_index: NodeIndex) -> bool {
 		if let Some(Some(node)) = self.nodes.get(node_index) {
@@ -1021,6 +1015,82 @@ impl RegionBasedKAryLayoutTree {
 	..##.##...######..##.....
 	.........................
 	*/
+
+
+	/// Returns the ancestors of a given node, from closest to furthest.
+	pub fn get_ancestors(&self, node_index: NodeIndex) -> Vec<NodeIndex> {
+		let mut ancestors_indices = Vec::new();
+		if let Some(Some(node)) = self.nodes.get(node_index) {
+			ancestors_indices.push(node.parent_node_index);
+		}
+		while let Some(&index_of_ancestor) = ancestors_indices.last() {
+			if index_of_ancestor == INDEX_OF_ROOT {
+				break;
+			}
+			if let Some(Some(ancestor)) = self.nodes.get(index_of_ancestor) {
+				ancestors_indices.push(ancestor.parent_node_index);
+			}
+		}
+		ancestors_indices
+	}
+
+	/// Returns the rightmost or leftmost leaf node of the subtree, depending on the given relative position (Before is leftmost, After is rightmost).
+	pub fn get_limit_leaf_of_subtree(&self, subtree_root: NodeIndex, relative_position: &RelativePosition) -> Option<NodeIndex> {
+		let mut leftmost_leaf_option = None;
+		let mut indices_to_check = vec![subtree_root];
+		while let Some(index_to_check) = indices_to_check.pop() {
+			if self.node_exists(index_to_check) {
+				if self.is_leaf_node(index_to_check) {
+					leftmost_leaf_option = Some(index_to_check);
+					break;
+				}
+			} else {
+				error!("Tried to get leftmost leaf of subtree with root index {} but found non-existing node with index {}", subtree_root, index_to_check);
+				return None;
+			}
+			if let Some(Some(node)) = self.nodes.get(index_to_check) {
+				let limit_node_index = match relative_position {
+					RelativePosition::Before => *node.children_indices.first().unwrap(),
+					RelativePosition::After => *node.children_indices.last().unwrap(),
+				};
+				indices_to_check.push(limit_node_index);
+			}
+		}
+		leftmost_leaf_option
+	}
+
+	/// Returns the closest leaf from a given node index in a given direction.
+	pub fn find_closest_leaf(&self, node_index: NodeIndex, direction: &LayoutDirection) -> Option<NodeIndex> {
+		let mut closest_leaf_option = None;
+		let ancestors_indices = self.get_ancestors(node_index);
+		for (i, &ancestor_node_index) in ancestors_indices.iter().enumerate() {
+			if let Some(Some(ancestor_node)) = self.nodes.get(ancestor_node_index) {
+				if ancestor_node.axis == direction.get_axis() {
+					let target = if i == 0 { node_index } else { ancestors_indices[i-1] };
+					let index_of_target = ancestor_node.index_of(target).unwrap();
+					match direction.get_relative_position() {
+						RelativePosition::Before => {
+							if index_of_target > 0 {
+								closest_leaf_option = Some(ancestor_node.children_indices[index_of_target - 1]);
+								break;
+							}
+						}
+						RelativePosition::After => {
+							if index_of_target < ancestor_node.len() - 1 {
+								closest_leaf_option = Some(ancestor_node.children_indices[index_of_target + 1]);
+								break;
+							}
+						}
+					}
+				}
+			}
+		}
+		if let Some(closest_leaf_node_index) = closest_leaf_option {
+			self.get_limit_leaf_of_subtree(closest_leaf_node_index, &RelativePosition::Before)
+		} else {
+			None
+		}
+	}
 
 	/// Removes the subtree from the layout
 	pub fn _remove_subtree(&mut self, subtree_root_index: NodeIndex) -> Result<Vec<NodeIndex>, String> {
