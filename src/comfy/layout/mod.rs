@@ -1007,16 +1007,6 @@ impl RegionBasedKAryLayoutTree {
 		self.print_subtree_to_console(INDEX_OF_ROOT);
 	}
 
-	/*
-	.##...##..######..#####..
-	.##...##....##....##..##.
-	.##.#.##....##....#####..
-	.#######....##....##.....
-	..##.##...######..##.....
-	.........................
-	*/
-
-
 	/// Returns the ancestors of a given node, from closest to furthest.
 	pub fn get_ancestors(&self, node_index: NodeIndex) -> Vec<NodeIndex> {
 		let mut ancestors_indices = Vec::new();
@@ -1091,6 +1081,15 @@ impl RegionBasedKAryLayoutTree {
 			None
 		}
 	}
+
+	/*
+	.##...##..######..#####..
+	.##...##....##....##..##.
+	.##.#.##....##....#####..
+	.#######....##....##.....
+	..##.##...######..##.....
+	.........................
+	*/
 
 	/// Removes the subtree from the layout
 	pub fn _remove_subtree(&mut self, subtree_root_index: NodeIndex) -> Result<Vec<NodeIndex>, String> {
