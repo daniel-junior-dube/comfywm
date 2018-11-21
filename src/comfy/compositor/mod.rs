@@ -149,7 +149,9 @@ impl ComfyKernel {
 	pub fn move_cursor_in_active_output(&mut self, direction: LayoutDirection) {
 		let mut shell_handle_option = None;
 		if let Some(OutputData { workspace, .. }) = self.output_data_map.get_mut(&self.active_output_name) {
-			shell_handle_option = workspace.window_layout.get_shell_handle_relative_to_active_node(&direction);
+			shell_handle_option = workspace
+				.window_layout
+				.get_shell_handle_relative_to_active_node(&direction);
 		} else {
 			error!(
 				"Failed to get output data for active output: {}",
@@ -164,6 +166,18 @@ impl ComfyKernel {
 
 	pub fn set_cursor_direction(&mut self, direction: LayoutDirection) {
 		self.cursor_direction = direction;
+	}
+
+	pub fn move_active_window(&mut self, direction: LayoutDirection) {
+		if let Some(OutputData { workspace, .. }) = self.output_data_map.get_mut(&self.active_output_name) {
+			workspace.window_layout.move_active_window(&direction);
+		} else {
+			error!(
+				"Failed to get output data for active output: {}",
+				self.active_output_name
+			);
+		}
+		self.schedule_frame_for_output(&self.active_output_name);
 	}
 
 	/// Add the provided shell handle as a new window inside the active workspace

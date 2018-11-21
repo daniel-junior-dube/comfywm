@@ -45,6 +45,16 @@ pub enum LayoutDirection {
 	Right,
 }
 impl LayoutDirection {
+	/// Returns the opposite direction of the provided direction.
+	pub fn get_opposite(&self) -> LayoutDirection {
+		match self {
+			LayoutDirection::Up => LayoutDirection::Down,
+			LayoutDirection::Down => LayoutDirection::Up,
+			LayoutDirection::Left => LayoutDirection::Right,
+			LayoutDirection::Right => LayoutDirection::Left,
+		}
+	}
+
 	/// Returns the axis associated with the instance of the layout direction.
 	pub fn get_axis(&self) -> LayoutAxis {
 		match self {
@@ -59,12 +69,30 @@ impl LayoutDirection {
 			LayoutDirection::Down | LayoutDirection::Right => RelativePosition::After,
 		}
 	}
+
+	pub fn as_linear_extremity(&self) -> LinearExtremity {
+		self.get_relative_position().as_linear_extremity()
+	}
 }
 
 /// Relative linear position used when obtaining a node that is before or after another.
 pub enum RelativePosition {
 	After,
 	Before,
+}
+impl RelativePosition {
+	pub fn as_linear_extremity(&self) -> LinearExtremity {
+		match self {
+			RelativePosition::Before => LinearExtremity::Start,
+			RelativePosition::After => LinearExtremity::End,
+		}
+	}
+}
+
+/// Linear extremity variants used to represent the absolute position at the `start` or the `end` of a linear container.
+pub enum LinearExtremity {
+	Start,
+	End,
 }
 
 /*
@@ -193,9 +221,12 @@ impl LayoutNode {
 		self.axis = new_axis;
 	}
 
-	/// Adds the provided index as a child of the container.
-	fn add_child_index(&mut self, child_index: NodeIndex) {
-		self.children_indices.push(child_index);
+	/// Adds the provided index as a child of the container. The provided extremity indicates if the child should be added at the `start` or `end` of the container.
+	fn add_child_index(&mut self, child_index: NodeIndex, extremity: &LinearExtremity) {
+		match extremity {
+			LinearExtremity::Start => self.children_indices.insert(0, child_index),
+			LinearExtremity::End => self.children_indices.push(child_index),
+		}
 	}
 
 	/// Adds the provided index as a child of the container right after .
@@ -347,11 +378,17 @@ impl Layout {
 	}
 
 	/// Returns the shell_handle of the leaf node closest to the active one in a specific direction
-	pub fn get_shell_handle_relative_to_active_node(&self, direction: &LayoutDirection) -> Option<WLRXdgV6ShellSurfaceHandle> {
+	pub fn get_shell_handle_relative_to_active_node(
+		&self,
+		direction: &LayoutDirection,
+	) -> Option<WLRXdgV6ShellSurfaceHandle> {
 		if self.layout_tree.active_node_index == INDEX_OF_ROOT {
 			None
 		} else {
-			if let Some(closest_leaf_index) = self.layout_tree.find_closest_leaf(self.layout_tree.active_node_index, direction) {
+			if let Some(closest_leaf_index) = self
+				.layout_tree
+				.find_closest_leaf(self.layout_tree.active_node_index, direction)
+			{
 				let window = self.leaf_index_to_windows_map.get(&closest_leaf_index).unwrap();
 				Some(window.shell_handle.clone())
 			} else {
@@ -407,6 +444,16 @@ impl Layout {
 		}
 
 		Ok(())
+	}
+
+	/// Moves the actives window in a direction inside the layout.
+	pub fn move_active_window(&mut self, direction: &LayoutDirection) {
+		if self.layout_tree.active_node_index == INDEX_OF_ROOT {
+			return;
+		}
+
+		self.layout_tree.move_active_node(direction);
+		self.rebalance();
 	}
 
 	/// If the layout contains a window associated with the provided xdg shell surface handle, we remove it from the layout.
@@ -603,23 +650,44 @@ impl RegionBasedKAryLayoutTree {
 		dirty_leaves
 	}
 
-	/// Move the node associated to the provided node index as the last child of a provided target.
-	fn move_index_under(&mut self, node_index: NodeIndex, index_of_target: NodeIndex) -> Option<NodeIndex> {
-		// ? Remove child from current parent
-		if let Some(parent_node_index) = self.get_parent_node_index_of(node_index) {
-			if let Some(Some(parent_node)) = self.nodes.get_mut(parent_node_index) {
-				parent_node.remove(node_index);
-			}
-		}
-
+	/// Binds a node to a parent. (Add the child to the parent and set the parent to the child).
+	fn set_parent_to_node(
+		&mut self,
+		node_index: NodeIndex,
+		new_parent_node_index: NodeIndex,
+		extremity: &LinearExtremity,
+	) -> bool {
 		// ? Set parent to child
 		if let Some(Some(node)) = self.nodes.get_mut(node_index) {
-			node.parent_node_index = index_of_target;
+			node.parent_node_index = new_parent_node_index;
 		}
 
 		// ? Set child to parent
-		if let Some(Some(parent_node)) = self.nodes.get_mut(index_of_target) {
-			parent_node.add_child_index(node_index);
+		if let Some(Some(parent_node)) = self.nodes.get_mut(new_parent_node_index) {
+			parent_node.add_child_index(node_index, extremity);
+			return true;
+		}
+		false
+	}
+
+	/// Move the node associated to the provided node index as the last child of a provided target.
+	fn move_index_under(
+		&mut self,
+		node_index: NodeIndex,
+		index_of_target: NodeIndex,
+		extremity: &LinearExtremity,
+	) -> Option<NodeIndex> {
+		let previous_parent = self.get_parent_node_index_of(node_index)?;
+		if self.set_parent_to_node(node_index, index_of_target, extremity) {
+			// ? Detach from old parent
+			if previous_parent != index_of_target {
+				if let Some(Some(previous_parent_node)) = self.nodes.get_mut(previous_parent) {
+					previous_parent_node.remove(node_index);
+				}
+				if self.should_merge_with_parent(previous_parent) {
+					self.remove_node(previous_parent).unwrap();
+				}
+			}
 			return Some(index_of_target);
 		}
 		None
@@ -632,6 +700,7 @@ impl RegionBasedKAryLayoutTree {
 		index_of_target: NodeIndex,
 		relative_position: &RelativePosition,
 	) {
+		// ? One after the other, we send each indices next to the target backward, so they keep the order
 		for index_to_move in indices_to_move.iter().rev() {
 			self.move_index_next_to(*index_to_move, index_of_target, relative_position);
 		}
@@ -658,10 +727,9 @@ impl RegionBasedKAryLayoutTree {
 		// ? Get parent node index, otherwise print an error (parent of target has to exist or target isn't a valid node)
 		if let Some(index_of_parent_of_target) = self.get_parent_node_index_of(index_of_target) {
 			// ? Remove node to add from it's parent
-			if let Some(parent_index_of_node_to_add) = self.get_parent_node_index_of(index_of_node_to_move) {
-				if let Some(Some(parent_of_node_to_add)) = self.nodes.get_mut(parent_index_of_node_to_add) {
-					parent_of_node_to_add.remove(index_of_node_to_move);
-				}
+			let parent_index_of_node_to_move = self.get_parent_node_index_of(index_of_node_to_move).unwrap();
+			if let Some(Some(parent_of_node_to_add)) = self.nodes.get_mut(parent_index_of_node_to_move) {
+				parent_of_node_to_add.remove(index_of_node_to_move);
 			}
 
 			// ? Set parent to child
@@ -672,8 +740,12 @@ impl RegionBasedKAryLayoutTree {
 			// ? Set child to parent
 			if let Some(Some(parent_node)) = self.nodes.get_mut(index_of_parent_of_target) {
 				parent_node.add_child_index_next_to(index_of_node_to_move, index_of_target, relative_position);
-				return Some(index_of_parent_of_target);
 			}
+
+			if self.should_merge_with_parent(parent_index_of_node_to_move) {
+				self.remove_node(parent_index_of_node_to_move).unwrap();
+			}
+			return Some(index_of_parent_of_target);
 		} else {
 			error!(
 				"INVALID TARGET NODE: Tried to add index '{}' next to '{}', but target has no parent.",
@@ -769,7 +841,7 @@ impl RegionBasedKAryLayoutTree {
 				self.move_index_next_to(new_container_index, active_node_index, &RelativePosition::After);
 
 				// ? Move the active node under the new container
-				self.move_index_under(active_node_index, new_container_index);
+				self.move_index_under(active_node_index, new_container_index, &LinearExtremity::End);
 
 				// ? Move the new node before or after the active node index (depending on the given direction)
 				let relative_position_where_to_move = direction.get_relative_position();
@@ -796,13 +868,12 @@ impl RegionBasedKAryLayoutTree {
 
 	/// Moves the provided index under the root node
 	fn move_index_under_root(&mut self, node_index: NodeIndex) -> Option<NodeIndex> {
-		self.move_index_under(node_index, INDEX_OF_ROOT)
+		self.move_index_under(node_index, INDEX_OF_ROOT, &LinearExtremity::End)
 	}
 
 	/// Return the index of the node that would be the active one in the case of the active node being deleted.
 	pub fn find_fallback_node_index(&self, node_index: NodeIndex) -> NodeIndex {
 		if let Some(parent_node_index) = self.get_parent_node_index_of(node_index) {
-
 			// ? Use left sibling or right sibling as fallback
 			let mut siblings_index_option = None;
 			if let Some(Some(ref parent_node)) = self.nodes.get(parent_node_index) {
@@ -824,7 +895,9 @@ impl RegionBasedKAryLayoutTree {
 			}
 
 			if let Some(sibling_index) = siblings_index_option {
-				return self.get_limit_leaf_of_subtree(sibling_index, &RelativePosition::Before).unwrap();
+				return self
+					.get_limit_leaf_of_subtree(sibling_index, &RelativePosition::Before)
+					.unwrap();
 			}
 
 			// ? If parent has no other child and parent is root_node
@@ -868,7 +941,6 @@ impl RegionBasedKAryLayoutTree {
 	/// If the node is the currently active one, assign the active to the fallback node.
 	/// Also removes trailing holes dynamically if the removed node is the last one in the list.
 	fn remove_node_from_list(&mut self, node_index: NodeIndex) -> Result<(), String> {
-
 		// ? Check that the node is valid
 		if !self.node_exists(node_index) {
 			return Err("Tried to remove unexistant node index from the list".to_string());
@@ -1016,6 +1088,120 @@ impl RegionBasedKAryLayoutTree {
 	.........................
 	*/
 
+	/// Return true if a node should be merged with it's parent.
+	/// Here are the condition that indicates that a node should be merged:
+	/// - The node is not a leaf
+	/// - The node has a single child or is on the same axis of its parent
+	pub fn should_merge_with_parent(&mut self, node_index: NodeIndex) -> bool {
+		if node_index == INDEX_OF_ROOT {
+			return false;
+		}
+		if self.is_leaf_node(node_index) {
+			return false;
+		}
+		let parent_index = self.get_parent_node_index_of(node_index).unwrap();
+		if self.get_axis_of(node_index) != self.get_axis_of(parent_index) {
+			let direct_children_indices = self.get_direct_children_indices_of(node_index);
+			let nb_children = direct_children_indices.len();
+			if nb_children > 1 {
+				return false;
+			}
+		}
+		true
+	}
+
+	/// Returns true if the `node_index` is a child of the node associated with `target_node_index`.
+	pub fn index_is_direct_child_of(&self, node_index: NodeIndex, target_node_index: NodeIndex) -> bool {
+		let direct_children = self.get_direct_children_indices_of(target_node_index);
+		direct_children.contains(&node_index)
+	}
+
+	/// Returns all the ancestors of the node associated with the `node_index` which is on the same axis of the provided one.
+	pub fn get_ancestor_with_same_axis(&self, node_index: NodeIndex, axis: &LayoutAxis) -> Vec<NodeIndex> {
+		let ancestors = self.get_ancestors(node_index);
+		ancestors
+			.iter()
+			.cloned()
+			.filter(|&ancestor_index| {
+				if let Some(Some(ancestor_node)) = self.nodes.get(ancestor_index) {
+					ancestor_node.axis == *axis
+				} else {
+					false
+				}
+			}).collect()
+	}
+
+	/// Moves the active node in a provided direction.
+	pub fn move_active_node(&mut self, direction: &LayoutDirection) {
+		let active_node_index = self.active_node_index;
+		let parent_of_active = self.get_parent_node_index_of(self.active_node_index).unwrap();
+		let closest_sibling_option = self.get_closest_sibling_in_direction(active_node_index, &direction);
+		if let Some(closest_sibling) = closest_sibling_option {
+			let is_direct_child = self.index_is_direct_child_of(closest_sibling, parent_of_active);
+			if is_direct_child {
+				if self.is_leaf_node(closest_sibling) {
+					self.move_index_next_to(active_node_index, closest_sibling, &direction.get_relative_position());
+				} else {
+					let children = self.get_direct_children_indices_of(closest_sibling);
+
+					// ? If the container closest sibling has no child, just put it under, otherwise add before first child
+					if children.is_empty() {
+						// TODO: Should never happen, we should not leave empty container
+						self.move_index_under(active_node_index, closest_sibling, &LinearExtremity::End);
+					} else {
+						self.move_index_next_to(active_node_index, children[0], &RelativePosition::Before);
+					}
+				}
+			} else {
+				self.move_index_next_to(
+					active_node_index,
+					closest_sibling,
+					&direction.get_opposite().get_relative_position(),
+				);
+			}
+		} else {
+			let mut ancestor_with_same_axis = self.get_ancestor_with_same_axis(self.active_node_index, &direction.get_axis());
+			if ancestor_with_same_axis.is_empty() {
+				// TODO: split the tree so root is same direction and move node to direction
+
+			} else {
+				for ancestor_index in ancestor_with_same_axis.iter().cloned() {
+					if !self.index_is_direct_child_of(active_node_index, ancestor_index) {
+						self.move_index_under(active_node_index, ancestor_index, &direction.as_linear_extremity());
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	/// Returns the closest sibling from a provided node in a probided direction
+	pub fn get_closest_sibling_in_direction(
+		&self,
+		node_index: NodeIndex,
+		direction: &LayoutDirection,
+	) -> Option<NodeIndex> {
+		let direction_axis = direction.get_axis();
+		let ancestors_indices = self.get_ancestors(node_index);
+		for (i, &ancestor_node_index) in ancestors_indices.iter().enumerate() {
+			if let Some(Some(ancestor_node)) = self.nodes.get(ancestor_node_index) {
+				if ancestor_node.axis == direction_axis {
+					let target = if i == 0 { node_index } else { ancestors_indices[i - 1] };
+					let index_of_target = ancestor_node.index_of(target).unwrap();
+					match direction.get_relative_position() {
+						RelativePosition::Before if index_of_target > 0 => {
+							return Some(ancestor_node.children_indices[index_of_target - 1])
+						}
+						RelativePosition::After if index_of_target < ancestor_node.len() - 1 => {
+							return Some(ancestor_node.children_indices[index_of_target + 1])
+						}
+						_ => {}
+					}
+				}
+			}
+		}
+		None
+	}
 
 	/// Returns the ancestors of a given node, from closest to furthest.
 	pub fn get_ancestors(&self, node_index: NodeIndex) -> Vec<NodeIndex> {
@@ -1035,7 +1221,11 @@ impl RegionBasedKAryLayoutTree {
 	}
 
 	/// Returns the rightmost or leftmost leaf node of the subtree, depending on the given relative position (Before is leftmost, After is rightmost).
-	pub fn get_limit_leaf_of_subtree(&self, subtree_root: NodeIndex, relative_position: &RelativePosition) -> Option<NodeIndex> {
+	pub fn get_limit_leaf_of_subtree(
+		&self,
+		subtree_root: NodeIndex,
+		relative_position: &RelativePosition,
+	) -> Option<NodeIndex> {
 		let mut leftmost_leaf_option = None;
 		let mut indices_to_check = vec![subtree_root];
 		while let Some(index_to_check) = indices_to_check.pop() {
@@ -1045,7 +1235,10 @@ impl RegionBasedKAryLayoutTree {
 					break;
 				}
 			} else {
-				error!("Tried to get leftmost leaf of subtree with root index {} but found non-existing node with index {}", subtree_root, index_to_check);
+				error!(
+					"Tried to get leftmost leaf of subtree with root index {} but found non-existing node with index {}",
+					subtree_root, index_to_check
+				);
 				return None;
 			}
 			if let Some(Some(node)) = self.nodes.get(index_to_check) {
@@ -1061,30 +1254,7 @@ impl RegionBasedKAryLayoutTree {
 
 	/// Returns the closest leaf from a given node index in a given direction.
 	pub fn find_closest_leaf(&self, node_index: NodeIndex, direction: &LayoutDirection) -> Option<NodeIndex> {
-		let mut closest_leaf_option = None;
-		let ancestors_indices = self.get_ancestors(node_index);
-		for (i, &ancestor_node_index) in ancestors_indices.iter().enumerate() {
-			if let Some(Some(ancestor_node)) = self.nodes.get(ancestor_node_index) {
-				if ancestor_node.axis == direction.get_axis() {
-					let target = if i == 0 { node_index } else { ancestors_indices[i-1] };
-					let index_of_target = ancestor_node.index_of(target).unwrap();
-					match direction.get_relative_position() {
-						RelativePosition::Before => {
-							if index_of_target > 0 {
-								closest_leaf_option = Some(ancestor_node.children_indices[index_of_target - 1]);
-								break;
-							}
-						}
-						RelativePosition::After => {
-							if index_of_target < ancestor_node.len() - 1 {
-								closest_leaf_option = Some(ancestor_node.children_indices[index_of_target + 1]);
-								break;
-							}
-						}
-					}
-				}
-			}
-		}
+		let closest_leaf_option = self.get_closest_sibling_in_direction(node_index, &direction);
 		if let Some(closest_leaf_node_index) = closest_leaf_option {
 			self.get_limit_leaf_of_subtree(closest_leaf_node_index, &RelativePosition::Before)
 		} else {
