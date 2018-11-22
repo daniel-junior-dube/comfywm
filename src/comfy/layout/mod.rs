@@ -874,6 +874,7 @@ impl RegionBasedKAryLayoutTree {
 	/// Return the index of the node that would be the active one in the case of the active node being deleted.
 	pub fn find_fallback_node_index(&self, node_index: NodeIndex) -> NodeIndex {
 		if let Some(parent_node_index) = self.get_parent_node_index_of(node_index) {
+
 			// ? Use left sibling or right sibling as fallback
 			let mut siblings_index_option = None;
 			if let Some(Some(ref parent_node)) = self.nodes.get(parent_node_index) {
@@ -941,6 +942,7 @@ impl RegionBasedKAryLayoutTree {
 	/// If the node is the currently active one, assign the active to the fallback node.
 	/// Also removes trailing holes dynamically if the removed node is the last one in the list.
 	fn remove_node_from_list(&mut self, node_index: NodeIndex) -> Result<(), String> {
+
 		// ? Check that the node is valid
 		if !self.node_exists(node_index) {
 			return Err("Tried to remove unexistant node index from the list".to_string());
@@ -1079,6 +1081,65 @@ impl RegionBasedKAryLayoutTree {
 		self.print_subtree_to_console(INDEX_OF_ROOT);
 	}
 
+	/// Returns the ancestors of a given node, from closest to furthest.
+	pub fn get_ancestors(&self, node_index: NodeIndex) -> Vec<NodeIndex> {
+		let mut ancestors_indices = Vec::new();
+		if let Some(Some(node)) = self.nodes.get(node_index) {
+			ancestors_indices.push(node.parent_node_index);
+		}
+		while let Some(&index_of_ancestor) = ancestors_indices.last() {
+			if index_of_ancestor == INDEX_OF_ROOT {
+				break;
+			}
+			if let Some(Some(ancestor)) = self.nodes.get(index_of_ancestor) {
+				ancestors_indices.push(ancestor.parent_node_index);
+			}
+		}
+		ancestors_indices
+	}
+
+	/// Returns the rightmost or leftmost leaf node of the subtree, depending on the given relative position (Before is leftmost, After is rightmost).
+	pub fn get_limit_leaf_of_subtree(
+		&self,
+		subtree_root: NodeIndex,
+		relative_position: &RelativePosition,
+	) -> Option<NodeIndex> {
+		let mut leftmost_leaf_option = None;
+		let mut indices_to_check = vec![subtree_root];
+		while let Some(index_to_check) = indices_to_check.pop() {
+			if self.node_exists(index_to_check) {
+				if self.is_leaf_node(index_to_check) {
+					leftmost_leaf_option = Some(index_to_check);
+					break;
+				}
+			} else {
+				error!(
+					"Tried to get leftmost leaf of subtree with root index {} but found non-existing node with index {}",
+					subtree_root, index_to_check
+				);
+				return None;
+			}
+			if let Some(Some(node)) = self.nodes.get(index_to_check) {
+				let limit_node_index = match relative_position {
+					RelativePosition::Before => *node.children_indices.first().unwrap(),
+					RelativePosition::After => *node.children_indices.last().unwrap(),
+				};
+				indices_to_check.push(limit_node_index);
+			}
+		}
+		leftmost_leaf_option
+	}
+
+	/// Returns the closest leaf from a given node index in a given direction.
+	pub fn find_closest_leaf(&self, node_index: NodeIndex, direction: &LayoutDirection) -> Option<NodeIndex> {
+		let closest_leaf_option = self.get_closest_sibling_in_direction(node_index, &direction);
+		if let Some(closest_leaf_node_index) = closest_leaf_option {
+			self.get_limit_leaf_of_subtree(closest_leaf_node_index, &RelativePosition::Before)
+		} else {
+			None
+		}
+	}
+
 	/*
 	.##...##..######..#####..
 	.##...##....##....##..##.
@@ -1201,65 +1262,6 @@ impl RegionBasedKAryLayoutTree {
 			}
 		}
 		None
-	}
-
-	/// Returns the ancestors of a given node, from closest to furthest.
-	pub fn get_ancestors(&self, node_index: NodeIndex) -> Vec<NodeIndex> {
-		let mut ancestors_indices = Vec::new();
-		if let Some(Some(node)) = self.nodes.get(node_index) {
-			ancestors_indices.push(node.parent_node_index);
-		}
-		while let Some(&index_of_ancestor) = ancestors_indices.last() {
-			if index_of_ancestor == INDEX_OF_ROOT {
-				break;
-			}
-			if let Some(Some(ancestor)) = self.nodes.get(index_of_ancestor) {
-				ancestors_indices.push(ancestor.parent_node_index);
-			}
-		}
-		ancestors_indices
-	}
-
-	/// Returns the rightmost or leftmost leaf node of the subtree, depending on the given relative position (Before is leftmost, After is rightmost).
-	pub fn get_limit_leaf_of_subtree(
-		&self,
-		subtree_root: NodeIndex,
-		relative_position: &RelativePosition,
-	) -> Option<NodeIndex> {
-		let mut leftmost_leaf_option = None;
-		let mut indices_to_check = vec![subtree_root];
-		while let Some(index_to_check) = indices_to_check.pop() {
-			if self.node_exists(index_to_check) {
-				if self.is_leaf_node(index_to_check) {
-					leftmost_leaf_option = Some(index_to_check);
-					break;
-				}
-			} else {
-				error!(
-					"Tried to get leftmost leaf of subtree with root index {} but found non-existing node with index {}",
-					subtree_root, index_to_check
-				);
-				return None;
-			}
-			if let Some(Some(node)) = self.nodes.get(index_to_check) {
-				let limit_node_index = match relative_position {
-					RelativePosition::Before => *node.children_indices.first().unwrap(),
-					RelativePosition::After => *node.children_indices.last().unwrap(),
-				};
-				indices_to_check.push(limit_node_index);
-			}
-		}
-		leftmost_leaf_option
-	}
-
-	/// Returns the closest leaf from a given node index in a given direction.
-	pub fn find_closest_leaf(&self, node_index: NodeIndex, direction: &LayoutDirection) -> Option<NodeIndex> {
-		let closest_leaf_option = self.get_closest_sibling_in_direction(node_index, &direction);
-		if let Some(closest_leaf_node_index) = closest_leaf_option {
-			self.get_limit_leaf_of_subtree(closest_leaf_node_index, &RelativePosition::Before)
-		} else {
-			None
-		}
 	}
 
 	/// Removes the subtree from the layout
