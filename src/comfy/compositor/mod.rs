@@ -102,8 +102,6 @@ pub struct ComfyKernel {
 	pub output_data_map: HashMap<String, OutputData>,
 	pub workspace_pool: Vec<Workspace>,
 	pub seat_handle: Option<WLRSeatHandle>,
-	pub x: i32,
-	pub y: i32,
 	pub config: Config,
 	pub currently_pressed_keys: XkbKeySet,
 	pub cursor_direction: LayoutDirection,
@@ -125,8 +123,6 @@ impl ComfyKernel {
 			output_data_map: HashMap::<String, OutputData>::new(),
 			workspace_pool: vec![],
 			seat_handle: None,
-			x: 0,
-			y: 0,
 			config: Config::load(),
 			currently_pressed_keys: XkbKeySet::new(),
 			cursor_direction: LayoutDirection::Right,
@@ -150,6 +146,26 @@ impl ComfyKernel {
 		}).unwrap();
 	}
 
+	pub fn move_cursor_in_active_output(&mut self, direction: LayoutDirection) {
+		let mut shell_handle_option = None;
+		if let Some(OutputData { workspace, .. }) = self.output_data_map.get_mut(&self.active_output_name) {
+			shell_handle_option = workspace.window_layout.get_shell_handle_relative_to_active_node(&direction);
+		} else {
+			error!(
+				"Failed to get output data for active output: {}",
+				self.active_output_name
+			);
+		}
+		if let Some(shell_handle) = shell_handle_option {
+			self.set_activated(&shell_handle);
+		}
+		self.schedule_frame_for_output(&self.active_output_name);
+	}
+
+	pub fn set_cursor_direction(&mut self, direction: LayoutDirection) {
+		self.cursor_direction = direction;
+	}
+
 	/// Add the provided shell handle as a new window inside the active workspace
 	pub fn add_window_to_active_workspace(&mut self, shell_handle: WLRXdgV6ShellSurfaceHandle) {
 		let current_cursor_direction = self.cursor_direction.clone();
@@ -171,23 +187,15 @@ impl ComfyKernel {
 			);
 		}
 
-		match current_cursor_direction {
-			LayoutDirection::Right => self.cursor_direction = LayoutDirection::Down,
-			LayoutDirection::Down => self.cursor_direction = LayoutDirection::Left,
-			LayoutDirection::Left => self.cursor_direction = LayoutDirection::Up,
-			LayoutDirection::Up => self.cursor_direction = LayoutDirection::Right,
-		}
-
 		self.schedule_frame_for_output(&self.active_output_name);
 	}
 
 	/// Finds and removes the window bound to the provided shell handle from the containing output.
 	pub fn find_and_remove_window(&mut self, shell_handle: WLRXdgV6ShellSurfaceHandle) {
-		let shell_area = shell_handle_helper::get_shell_area(&shell_handle);
 		let mut fallback_shell_handle_option = None;
 		let mut name_of_container_output = None;
 		for (output_name, output_data) in self.output_data_map.iter_mut() {
-			if output_data.workspace.window_layout.intersects_with(&shell_area) {
+			if output_data.workspace.window_layout.contains_shell_handle(&shell_handle) {
 				match output_data
 					.workspace
 					.window_layout
@@ -238,6 +246,13 @@ impl ComfyKernel {
 			).unwrap();
 			()
 		);
+
+		// ? Finds the containing layout to find the containing node and set it as last activated
+		for (_output_name, output_data) in self.output_data_map.iter_mut() {
+			if output_data.workspace.window_layout.contains_shell_handle(&shell_handle) {
+				output_data.workspace.window_layout.set_as_last_activated(&shell_handle);
+			}
+		}
 	}
 
 	/// Returns the command associated with the provided key_set if any.
