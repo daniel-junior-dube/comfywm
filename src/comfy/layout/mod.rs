@@ -33,6 +33,14 @@ impl LayoutAxis {
 			LayoutAxis::Horizontal => '►',
 		}
 	}
+
+	/// Returns the opposite of the axis.
+	pub fn get_opposite(&self) -> Self {
+		match self {
+			LayoutAxis::Vertical => LayoutAxis::Horizontal,
+			LayoutAxis::Horizontal => LayoutAxis::Vertical,
+		}
+	}
 }
 
 /// Direction used when interacting on the layout. (Example: Moving or adding in a relative direction from a node)
@@ -216,8 +224,14 @@ impl LayoutNode {
 		self.children_indices.len()
 	}
 
+	/// Sets the axis to the provided axis
 	fn set_axis(&mut self, new_axis: LayoutAxis) {
 		self.axis = new_axis;
+	}
+
+	/// Inverse the axis of the node.
+	fn inverse_axis(&mut self) {
+		self.axis = self.axis.get_opposite();
 	}
 
 	/// Adds the provided index as a child of the container. The provided extremity indicates if the child should be added at the `start` or `end` of the container.
@@ -678,27 +692,81 @@ impl RegionBasedKAryLayoutTree {
 		false
 	}
 
+	/// If the node associated with the provided node index is a container, removes all container node from children and removes itself.
+	/// This merges all remaining children with it's parent.
+	fn merge_with_parent(&mut self, node_index: NodeIndex) {
+		if !self.is_leaf_node(node_index) {
+			// ? Remove all container nodes from children
+			let children_indices = self.get_direct_children_indices_of(node_index);
+			for &child_index in children_indices.iter() {
+				if !self.is_leaf_node(child_index) {
+					self.remove_node(child_index).unwrap();
+				}
+			}
+
+			// ? remove `self` container node
+			self.remove_node(node_index).unwrap();
+		}
+	}
+
+	/// Restructure the layout at the level of the provided node.
+	/// Restructuring means that if the node is root and needs to be overwritten or should be merged with it's parent, it will be.
+	fn restructure(&mut self, node_index: NodeIndex) {
+		if node_index == INDEX_OF_ROOT {
+			// ? Overwrite root
+			let children_of_root = self.get_direct_children_indices_of(INDEX_OF_ROOT);
+			if children_of_root.len() == 1 && !self.is_leaf_node(children_of_root[0]) {
+				let child_axis = self.get_axis_of(children_of_root[0]).unwrap();
+				if let Some(Some(root_node)) = self.nodes.get_mut(INDEX_OF_ROOT) {
+					root_node.set_axis(child_axis);
+				}
+				self.remove_node(children_of_root[0]).unwrap();
+			}
+		} else if self.should_merge_with_parent(node_index) {
+			self.merge_with_parent(node_index);
+		}
+	}
+
 	/// Move the node associated to the provided node index as the last child of a provided target.
 	fn move_index_under(
 		&mut self,
 		node_index: NodeIndex,
 		index_of_target: NodeIndex,
 		extremity: &LinearExtremity,
+		prevent_restructure: bool,
 	) -> Option<NodeIndex> {
 		let previous_parent = self.get_parent_node_index_of(node_index)?;
+		if let Some(Some(previous_parent_node)) = self.nodes.get_mut(previous_parent) {
+			previous_parent_node.remove(node_index);
+		}
 		if self.set_parent_to_node(node_index, index_of_target, extremity) {
-			// ? Detach from old parent
-			if previous_parent != index_of_target {
-				if let Some(Some(previous_parent_node)) = self.nodes.get_mut(previous_parent) {
-					previous_parent_node.remove(node_index);
-				}
-				if self.should_merge_with_parent(previous_parent) {
-					self.remove_node(previous_parent).unwrap();
-				}
+			// ? Restructure the level of the parent (merge with parent or overwrite root)
+			if !prevent_restructure {
+				self.restructure(previous_parent);
 			}
 			return Some(index_of_target);
 		}
 		None
+	}
+
+	/// Moves the nodes associated with the provided node indices next to the target.
+	fn move_indices_under(
+		&mut self,
+		indices_to_move: Vec<NodeIndex>,
+		index_of_target: NodeIndex,
+		extremity: &LinearExtremity,
+		prevent_restructure: bool,
+	) {
+		// ? One after the other, we send each indices next to the target backward, so they keep the order
+		let max_index = indices_to_move.len() - 1;
+		for (i, index_to_move) in indices_to_move.iter().enumerate() {
+			self.move_index_under(
+				*index_to_move,
+				index_of_target,
+				extremity,
+				prevent_restructure && i != max_index,
+			);
+		}
 	}
 
 	/// Moves the nodes associated with the provided node indices next to the target.
@@ -707,10 +775,16 @@ impl RegionBasedKAryLayoutTree {
 		indices_to_move: Vec<NodeIndex>,
 		index_of_target: NodeIndex,
 		relative_position: &RelativePosition,
+		prevent_restructure: bool,
 	) {
 		// ? One after the other, we send each indices next to the target backward, so they keep the order
-		for index_to_move in indices_to_move.iter().rev() {
-			self.move_index_next_to(*index_to_move, index_of_target, relative_position);
+		for (i, index_to_move) in indices_to_move.iter().enumerate().rev() {
+			self.move_index_next_to(
+				*index_to_move,
+				index_of_target,
+				relative_position,
+				prevent_restructure && i != 0,
+			);
 		}
 	}
 
@@ -720,9 +794,27 @@ impl RegionBasedKAryLayoutTree {
 		parent_node_index: NodeIndex,
 		index_of_target: NodeIndex,
 		relative_position: &RelativePosition,
+		prevent_restructure: bool,
 	) {
 		let direct_children_indices = self.get_direct_children_indices_of(parent_node_index);
-		self.move_indices_next_to(direct_children_indices, index_of_target, relative_position);
+		self.move_indices_next_to(
+			direct_children_indices,
+			index_of_target,
+			relative_position,
+			prevent_restructure,
+		);
+	}
+
+	/// Moves the nodes associated with the direct children of the provided `parent_node_index` under the target.
+	fn move_direct_children_under(
+		&mut self,
+		parent_node_index: NodeIndex,
+		index_of_target: NodeIndex,
+		extremity: &LinearExtremity,
+		prevent_restructure: bool,
+	) {
+		let direct_children_indices = self.get_direct_children_indices_of(parent_node_index);
+		self.move_indices_under(direct_children_indices, index_of_target, extremity, prevent_restructure);
 	}
 
 	/// Moves a node in the layout next to another.
@@ -731,6 +823,7 @@ impl RegionBasedKAryLayoutTree {
 		index_of_node_to_move: NodeIndex,
 		index_of_target: NodeIndex,
 		relative_position: &RelativePosition,
+		prevent_restructure: bool,
 	) -> Option<NodeIndex> {
 		// ? Get parent node index, otherwise print an error (parent of target has to exist or target isn't a valid node)
 		if let Some(index_of_parent_of_target) = self.get_parent_node_index_of(index_of_target) {
@@ -750,8 +843,9 @@ impl RegionBasedKAryLayoutTree {
 				parent_node.add_child_index_next_to(index_of_node_to_move, index_of_target, relative_position);
 			}
 
-			if self.should_merge_with_parent(parent_index_of_node_to_move) {
-				self.remove_node(parent_index_of_node_to_move).unwrap();
+			// ? Restructure the level of the parent
+			if !prevent_restructure {
+				self.restructure(parent_index_of_node_to_move);
 			}
 			return Some(index_of_parent_of_target);
 		} else {
@@ -786,7 +880,8 @@ impl RegionBasedKAryLayoutTree {
 		index_of_node_to_add: NodeIndex,
 		direction: &LayoutDirection,
 	) -> Option<NodeIndex> {
-		let active_node_is_root = self.active_node_index == INDEX_OF_ROOT;
+		let active_node_index = self.active_node_index;
+		let active_node_is_root = active_node_index == INDEX_OF_ROOT;
 		let parent_node_index = if active_node_is_root {
 			0
 		} else {
@@ -805,15 +900,12 @@ impl RegionBasedKAryLayoutTree {
 					self.move_index_under_root(index_of_node_to_add);
 				} else {
 					// ? Move the new node before or after the active node (depending on the given direction)
-					let active_node_index = self.active_node_index;
-					match direction {
-						LayoutDirection::Left | LayoutDirection::Up => {
-							self.move_index_next_to(index_of_node_to_add, active_node_index, &RelativePosition::Before)
-						}
-						LayoutDirection::Right | LayoutDirection::Down => {
-							self.move_index_next_to(index_of_node_to_add, active_node_index, &RelativePosition::After)
-						}
-					};
+					self.move_index_next_to(
+						index_of_node_to_add,
+						active_node_index,
+						&direction.get_relative_position(),
+						false,
+					);
 				}
 
 				// ? Change the axis of the parent node
@@ -821,35 +913,30 @@ impl RegionBasedKAryLayoutTree {
 					parent_node.set_axis(direction.get_axis());
 				}
 
-				return Some(parent_node_index);
+				Some(parent_node_index)
 			}
 
 			// ? Parent has more than 1 child, but is on the same axis
 			(_, true) => {
-				let active_node_index = self.active_node_index;
-				match direction {
-					LayoutDirection::Left | LayoutDirection::Up => {
-						self.move_index_next_to(index_of_node_to_add, active_node_index, &RelativePosition::Before)
-					}
-					LayoutDirection::Right | LayoutDirection::Down => {
-						self.move_index_next_to(index_of_node_to_add, active_node_index, &RelativePosition::After)
-					}
-				};
-				return Some(parent_node_index);
+				self.move_index_next_to(
+					index_of_node_to_add,
+					active_node_index,
+					&direction.get_relative_position(),
+					false,
+				);
+				Some(parent_node_index)
 			}
 
 			// ? Parent has more than 1 child, but is on a different axis
 			(_, false) => {
-				let active_node_index = self.active_node_index;
-
 				// ? Creates new container node to which we will add the active node and the new node
 				let new_container_index = self.add_new_empty_node(direction.get_axis(), parent_node_index);
 
 				// ? Move the container next to the active node
-				self.move_index_next_to(new_container_index, active_node_index, &RelativePosition::After);
+				self.move_index_next_to(new_container_index, active_node_index, &RelativePosition::After, false);
 
 				// ? Move the active node under the new container
-				self.move_index_under(active_node_index, new_container_index, &LinearExtremity::End);
+				self.move_index_under(active_node_index, new_container_index, &LinearExtremity::End, false);
 
 				// ? Move the new node before or after the active node index (depending on the given direction)
 				let relative_position_where_to_move = direction.get_relative_position();
@@ -857,15 +944,11 @@ impl RegionBasedKAryLayoutTree {
 					index_of_node_to_add,
 					active_node_index,
 					&relative_position_where_to_move,
+					false,
 				);
-				return Some(parent_node_index);
-			}
-			_ => {
-				// TODO: ERROR
+				Some(parent_node_index)
 			}
 		}
-
-		None
 	}
 
 	/// Sets the provided node index as the last activated node of the layout.
@@ -876,7 +959,7 @@ impl RegionBasedKAryLayoutTree {
 
 	/// Moves the provided index under the root node
 	fn move_index_under_root(&mut self, node_index: NodeIndex) -> Option<NodeIndex> {
-		self.move_index_under(node_index, INDEX_OF_ROOT, &LinearExtremity::End)
+		self.move_index_under(node_index, INDEX_OF_ROOT, &LinearExtremity::End, false)
 	}
 
 	/// Return the index of the node that would be the active one in the case of the active node being deleted.
@@ -1003,7 +1086,7 @@ impl RegionBasedKAryLayoutTree {
 		let parent_node_index = self.get_parent_node_index_of(node_index).unwrap();
 
 		// ? If the node to remove has direct children, move them next to the node in the layout
-		self.move_direct_children_next_to(node_index, node_index, &RelativePosition::After);
+		self.move_direct_children_next_to(node_index, node_index, &RelativePosition::After, true);
 
 		// ? Remove node
 		self.remove_node_from_list(node_index)?;
@@ -1055,14 +1138,22 @@ impl RegionBasedKAryLayoutTree {
 			let is_last_child = i == children_indices.len() - 1;
 			let is_leaf_node = self.is_leaf_node(child_index);
 			match (is_last_child, is_leaf_node) {
-				(false, true) => println!("{}├ W-{}", prefix, child_index),
+				(false, true) => if self.active_node_index == child_index {
+					println!("{}├ W-{} *", prefix, child_index);
+				} else {
+					println!("{}├ W-{}", prefix, child_index);
+				},
 				(false, false) => {
 					let container_axis = self.get_axis_of(child_index).unwrap();
 					let direction_character = container_axis.get_direction_char();
 					println!("{}├ C-{} {}", prefix, child_index, direction_character);
 					self.print_subtree_to_console_recur(child_index, &format!("{}│", prefix))
 				}
-				(true, true) => println!("{}└ W-{}", prefix, child_index),
+				(true, true) => if self.active_node_index == child_index {
+					println!("{}└ W-{} *", prefix, child_index);
+				} else {
+					println!("{}└ W-{}", prefix, child_index);
+				},
 				(true, false) => {
 					let container_axis = self.get_axis_of(child_index).unwrap();
 					let direction_character = container_axis.get_direction_char();
@@ -1077,7 +1168,11 @@ impl RegionBasedKAryLayoutTree {
 	pub fn print_subtree_to_console(&self, subtree_root_index: NodeIndex) {
 		let container_axis = self.get_axis_of(subtree_root_index).unwrap();
 		let direction_character = container_axis.get_direction_char();
-		println!("C-{} {}", subtree_root_index, direction_character);
+		if self.active_node_index == subtree_root_index {
+			println!("C-{} {} *", subtree_root_index, direction_character);
+		} else {
+			println!("C-{} {}", subtree_root_index, direction_character);
+		}
 		self.print_subtree_to_console_recur(subtree_root_index, "");
 	}
 
@@ -1176,6 +1271,25 @@ impl RegionBasedKAryLayoutTree {
 	.........................
 	*/
 
+	/// Returns the number of existing nodes in the list.
+	fn get_nb_nodes(&self) -> usize {
+		self.nodes.len() - self.available_places.len()
+	}
+
+	/// Extends the root by moving the current tree under a new root with an opposite direction.
+	/// Returns the index of the new node which substitutes the old root.
+	pub fn extend_root(&mut self) -> NodeIndex {
+		let root_axis = self.get_axis_of(INDEX_OF_ROOT).unwrap();
+		let new_node_index = self.add_new_empty_node(root_axis, INDEX_OF_ROOT);
+		if let Some(Some(root_node)) = self.nodes.get_mut(INDEX_OF_ROOT) {
+			root_node.inverse_axis();
+		}
+		self.move_direct_children_under(INDEX_OF_ROOT, new_node_index, &LinearExtremity::End, true);
+		self.set_parent_to_node(new_node_index, INDEX_OF_ROOT, &LinearExtremity::End);
+
+		new_node_index
+	}
+
 	/// Return true if a node should be merged with it's parent.
 	/// Here are the condition that indicates that a node should be merged:
 	/// - The node is not a leaf
@@ -1221,23 +1335,41 @@ impl RegionBasedKAryLayoutTree {
 
 	/// Moves the active node in a provided direction.
 	pub fn move_active_node(&mut self, direction: &LayoutDirection) {
+		let nb_nodes = self.get_nb_nodes();
+		// ? Less than 3 nodes means (at most) root + a single node, can't move
+		if nb_nodes < 3 {
+			return;
+		}
 		let active_node_index = self.active_node_index;
+		let root_is_on_same_axis = self.node_is_on_same_axis(INDEX_OF_ROOT, &direction.get_axis());
+		// ? Exactly 3 nodes means root + 2 window nodes, rotate root and move active in desired direction.
+		if nb_nodes == 3 && !root_is_on_same_axis {
+			if let Some(Some(root_node)) = self.nodes.get_mut(INDEX_OF_ROOT) {
+				root_node.inverse_axis();
+			}
+			self.move_index_under(active_node_index, INDEX_OF_ROOT, &direction.as_linear_extremity(), true);
+			return;
+		}
 		let parent_of_active = self.get_parent_node_index_of(self.active_node_index).unwrap();
 		let closest_sibling_option = self.get_closest_sibling_in_direction(active_node_index, &direction);
 		if let Some(closest_sibling) = closest_sibling_option {
 			let is_direct_child = self.index_is_direct_child_of(closest_sibling, parent_of_active);
 			if is_direct_child {
 				if self.is_leaf_node(closest_sibling) {
-					self.move_index_next_to(active_node_index, closest_sibling, &direction.get_relative_position());
+					self.move_index_next_to(
+						active_node_index,
+						closest_sibling,
+						&direction.get_relative_position(),
+						true,
+					);
 				} else {
 					let children = self.get_direct_children_indices_of(closest_sibling);
 
 					// ? If the container closest sibling has no child, just put it under, otherwise add before first child
 					if children.is_empty() {
-						// TODO: Should never happen, we should not leave empty container
-						self.move_index_under(active_node_index, closest_sibling, &LinearExtremity::End);
+						self.move_index_under(active_node_index, closest_sibling, &LinearExtremity::End, false);
 					} else {
-						self.move_index_next_to(active_node_index, children[0], &RelativePosition::Before);
+						self.move_index_next_to(active_node_index, children[0], &RelativePosition::Before, false);
 					}
 				}
 			} else {
@@ -1245,21 +1377,44 @@ impl RegionBasedKAryLayoutTree {
 					active_node_index,
 					closest_sibling,
 					&direction.get_opposite().get_relative_position(),
+					false,
 				);
 			}
 		} else {
+			let mut active_node_was_moved = false;
 			let mut ancestor_with_same_axis = self.get_ancestor_with_same_axis(self.active_node_index, &direction.get_axis());
-			if ancestor_with_same_axis.is_empty() {
-				// TODO: split the tree so root is same direction and move node to direction
-
-			} else {
-				for ancestor_index in ancestor_with_same_axis.iter().cloned() {
-					if !self.index_is_direct_child_of(active_node_index, ancestor_index) {
-						self.move_index_under(active_node_index, ancestor_index, &direction.as_linear_extremity());
-						break;
-					}
+			for ancestor_index in ancestor_with_same_axis.iter().cloned() {
+				if ancestor_index != parent_of_active {
+					active_node_was_moved = true;
+					self.move_index_under(
+						active_node_index,
+						ancestor_index,
+						&direction.as_linear_extremity(),
+						false,
+					);
+					break;
 				}
 			}
+
+			// ? If no matching ancestor was found and the root is on a different axis, extend the root and move to new root
+			if !active_node_was_moved && !root_is_on_same_axis {
+				let new_extended_node_index = self.extend_root();
+				self.move_index_next_to(
+					active_node_index,
+					new_extended_node_index,
+					&direction.get_relative_position(),
+					false,
+				);
+			}
+		}
+	}
+
+	/// Returns true if the node associated with the provided node index is on the same axis as the provided one.
+	fn node_is_on_same_axis(&self, node_index: NodeIndex, axis: &LayoutAxis) -> bool {
+		if let Some(node_axis) = self.get_axis_of(node_index) {
+			node_axis == *axis
+		} else {
+			false
 		}
 	}
 
