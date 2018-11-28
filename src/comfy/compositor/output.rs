@@ -67,7 +67,14 @@ impl OutputHandler {
 	}
 
 	/// Renders the provided surface using the provided renderer.
-	fn render_surface(&self, renderer: &mut Renderer, surface_handle: &WLRSurfaceHandle, window_area: &Area, sx: i32, sy: i32) {
+	fn render_surface(
+		&self,
+		renderer: &mut Renderer,
+		surface_handle: &WLRSurfaceHandle,
+		window_area: &Area,
+		sx: i32,
+		sy: i32,
+	) {
 		with_handles!([(surface: {surface_handle})] => {
 			let render_origin = Origin::new(
 				window_area.origin.x + sx,
