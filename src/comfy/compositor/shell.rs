@@ -6,6 +6,7 @@ use wlroots::{
 
 use compositor::surface::SurfaceHandler;
 use compositor::ComfyKernel;
+use utils::handle_helper::shell_handle_helper;
 
 /*
 ..####...##..##..######..##......##.....
@@ -19,10 +20,13 @@ use compositor::ComfyKernel;
 pub struct XdgV6ShellHandler;
 impl WLRXdgV6ShellHandler for XdgV6ShellHandler {
 	fn destroyed(&mut self, compositor: WLRCompositorHandle, shell_handle: WLRXdgV6ShellSurfaceHandle) {
-		with_handles!([(compositor: {compositor})] => {
-			let comfy_kernel: &mut ComfyKernel = compositor.into();
-			comfy_kernel.find_and_remove_window(shell_handle);
-		}).unwrap();
+		// ? We only add the shell handle as a window if it's a top level
+		if shell_handle_helper::is_top_level(&shell_handle) {
+			with_handles!([(compositor: {compositor})] => {
+				let comfy_kernel: &mut ComfyKernel = compositor.into();
+				comfy_kernel.find_and_remove_window(shell_handle);
+			}).unwrap();
+		}
 	}
 }
 
@@ -33,13 +37,16 @@ impl WLRXdgV6ShellManagerHandler for XdgV6ShellManagerHandler {
 		compositor_handle: WLRCompositorHandle,
 		shell_handle: WLRXdgV6ShellSurfaceHandle,
 	) -> (Option<Box<WLRXdgV6ShellHandler>>, Option<Box<WLRSurfaceHandler>>) {
-		dehandle!(
-			@compositor = {compositor_handle};
-			let comfy_kernel: &mut ComfyKernel = compositor.into();
-			comfy_kernel.apply_keyboard_focus(&shell_handle);
-			comfy_kernel.add_window_to_active_workspace(shell_handle);
-			()
-		);
+		// ? We only add the shell handle as a window if it's a top level
+		if shell_handle_helper::is_top_level(&shell_handle) {
+			dehandle!(
+				@compositor = {compositor_handle};
+				let comfy_kernel: &mut ComfyKernel = compositor.into();
+				comfy_kernel.set_activated(&shell_handle);
+				comfy_kernel.add_window_to_active_workspace(shell_handle);
+				()
+			);
+		}
 		(Some(Box::new(XdgV6ShellHandler)), Some(Box::new(SurfaceHandler)))
 	}
 }

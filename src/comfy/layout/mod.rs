@@ -424,13 +424,16 @@ impl Layout {
 	/// Adds a window in the layout given it's associated xdg shell surface handle.
 	/// The containing node will be a neighbor of the currently activated node if any.
 	/// Otherwise, it will be added as a child of the root.
-	pub fn add_window(
+	pub fn add_shell_handle(
 		&mut self,
-		window: Window,
+		shell_handle: WLRXdgV6ShellSurfaceHandle,
 		direction: &LayoutDirection,
 		set_as_last_activated: bool,
 		rebalance_after_insertion: bool,
 	) -> Result<(), String> {
+		// ? Add the top level shell as a new window
+		let mut window = Window::new_empty_area(shell_handle);
+		window.set_maximized();
 		let index_of_new_node = self
 			.layout_tree
 			.add_new_empty_node(LayoutAxis::Horizontal, INDEX_OF_ROOT);

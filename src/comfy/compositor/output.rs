@@ -4,7 +4,7 @@ use wlroots::{
 	OutputBuilder as WLROutputBuilder, OutputBuilderResult as WLROutputBuilderResult, OutputHandle as WLROutputHandle,
 	OutputHandler as WLROutputHandler,
 	OutputLayoutHandler as WLROutputLayoutHandler, /* , OutputDestruction as WLROutputDestruction */
-	OutputManagerHandler as WLROutputManagerHandler, Renderer, Size,
+	OutputManagerHandler as WLROutputManagerHandler, Renderer, Size, SurfaceHandle as WLRSurfaceHandle,
 };
 
 use common::colors::Color;
@@ -60,28 +60,35 @@ pub struct OutputHandler;
 impl OutputHandler {
 	/// Renders the provided window data using the provided renderer.
 	fn render_window(&self, window: &Window, renderer: &mut Renderer) {
-		let Window {
-			shell_handle,
-			area: window_area,
-		} = window;
-		with_handles!([(shell: {shell_handle}), (surface: {shell.surface()})] => {
+		let window_area = window.area.clone();
+		window.for_each_surface(&mut |surface_handle: WLRSurfaceHandle, sx, sy| {
+			self.render_surface(renderer, &surface_handle, &window_area, sx, sy);
+		});
+	}
+
+	/// Renders the provided surface using the provided renderer.
+	fn render_surface(&self, renderer: &mut Renderer, surface_handle: &WLRSurfaceHandle, window_area: &Area, sx: i32, sy: i32) {
+		with_handles!([(surface: {surface_handle})] => {
+			let render_origin = Origin::new(
+				window_area.origin.x + sx,
+				window_area.origin.y + sy
+			);
 			let (width, height) = surface.current_state().size();
-			let (render_width, render_height) = (
+			let render_size = Size::new(
 				width * renderer.output.scale() as i32,
 				height * renderer.output.scale() as i32
 			);
-			let _render_box = Area::new(
-				Origin::new(window_area.origin.x, window_area.origin.y),
-				Size::new(render_width, render_height)
-			);
+			let render_box = Area::new(render_origin, render_size);
 			let transform = renderer.output.get_transform().invert();
 			let matrix = wlr_project_box(
-				*window_area,
+				render_box,
 				transform,
 				0.0,
 				renderer.output.transform_matrix()
 			);
 			if let Some(texture) = surface.texture().as_ref() {
+				// ? Restrict the render of the surface to the window's area
+				renderer.set_scissor_box(*window_area);
 				renderer.render_texture_with_matrix(texture, matrix);
 			}
 			surface.send_frame_done(current_time());
