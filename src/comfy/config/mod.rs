@@ -1,18 +1,23 @@
+pub mod global;
 pub mod keybinding;
 pub mod parser;
 
+use self::global::Global;
 use self::keybinding::Keybindings;
 use std::env::var;
 use std::fs::File;
 
 const SYSTEM_DEFAULT_KEYBINDINGS_PATH: &str = "/etc/comfywm/keybindings.toml";
 const USER_KEYBINDINGS_PATH: &str = "/.config/comfywm/keybindings.toml";
+const SYSTEM_DEFAULT_CONFIG_PATH: &str = "/etc/comfywm/global.toml";
+const USER_GLOBAL_CONFIG_PATH: &str = "/.config/comfywm/global.toml";
 // TODO: import theme config
 // const SYSTEM_DEFAULT_THEME: &str = "/etc/comfywm/theme.toml";
 // const USER__THEME: &str = "/.config/comfywm/theme.toml";
 
 pub struct Config {
 	pub keybindings: Keybindings,
+	pub global: Global,
 }
 
 impl Config {
@@ -28,8 +33,38 @@ impl Config {
 			}
 		};
 
-		Config { keybindings }
+		let global = match load_user_global_config() {
+			Ok(global) => global,
+			Err(e) => {
+				warn!("Could not load the user's keybinding config: {}", e);
+				load_system_default_global()
+			}
+		};
+
+		Config { keybindings, global }
 	}
+}
+
+fn load_user_global_config() -> Result<Global, String> {
+	let user_home_path = var("HOME");
+	if !user_home_path.is_ok() {
+		return Err("No HOME variable set for the current user.".to_string());
+	}
+
+	match File::open(format!("{}{}", user_home_path.unwrap(), USER_GLOBAL_CONFIG_PATH)) {
+		Ok(user_config_file) => match Global::load(user_config_file) {
+			Ok(global) => Ok(global),
+			Err(e) => Err(format!("The user's global configuration contained error(s): {}", e)),
+		},
+		Err(e) => Err(format!("Could not open the user's global file: {}", e)),
+	}
+}
+
+fn load_system_default_global() -> Global {
+	info!("Loading system default global configuration");
+	let system_default_global_config =
+		File::open(SYSTEM_DEFAULT_CONFIG_PATH).expect("Fatal error: Could open global config!");
+	Global::load(system_default_global_config).expect("Fatal error: could not load any global config files!")
 }
 
 fn load_user_keybindings() -> Result<Keybindings, String> {

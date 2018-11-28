@@ -26,8 +26,9 @@ extern crate serde_derive;
 #[macro_use]
 extern crate log;
 extern crate log4rs;
-
-use std::env;
+extern crate strum;
+#[macro_use]
+extern crate strum_macros;
 
 use wlroots::utils::{init_logging as wlr_init_logging, WLR_DEBUG};
 
