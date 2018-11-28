@@ -5,11 +5,12 @@ use wlroots::{
 };
 
 use compositor::ComfyKernel;
-use input::cursor::PointerHandler;
 use input::keyboard::KeyboardHandler;
+use input::pointer::PointerHandler;
 
 pub mod cursor;
 pub mod keyboard;
+pub mod pointer;
 pub mod seat;
 
 /*

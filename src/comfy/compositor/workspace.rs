@@ -1,6 +1,5 @@
-use wlroots::{Area, XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle};
+use wlroots::Area;
 
-use compositor::window::Window;
 use layout::Layout;
 
 /*

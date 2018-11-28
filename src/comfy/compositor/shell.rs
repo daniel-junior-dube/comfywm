@@ -1,7 +1,7 @@
 use wlroots::{
 	CompositorHandle as WLRCompositorHandle, SurfaceHandler as WLRSurfaceHandler,
 	XdgV6ShellHandler as WLRXdgV6ShellHandler, XdgV6ShellManagerHandler as WLRXdgV6ShellManagerHandler,
-	XdgV6ShellState as WLRXdgV6ShellState, XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle,
+	XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle,
 };
 
 use compositor::surface::SurfaceHandler;
@@ -36,7 +36,7 @@ impl WLRXdgV6ShellManagerHandler for XdgV6ShellManagerHandler {
 		dehandle!(
 			@compositor = {compositor_handle};
 			let comfy_kernel: &mut ComfyKernel = compositor.into();
-			comfy_kernel.set_activated(&shell_handle);
+			comfy_kernel.apply_keyboard_focus(&shell_handle);
 			comfy_kernel.add_window_to_active_workspace(shell_handle);
 			()
 		);
