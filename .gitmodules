@@ -1,4 +1,4 @@
 
 [submodule "lib/wlroots-rs"]
 	path = lib/wlroots-rs
-	url = git@github.com:daniel-junior-dube/wlroots-rs.git
+	url = https://github.com/daniel-junior-dube/wlroots-rs.git
