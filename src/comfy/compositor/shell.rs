@@ -42,7 +42,7 @@ impl WLRXdgV6ShellManagerHandler for XdgV6ShellManagerHandler {
 			dehandle!(
 				@compositor = {compositor_handle};
 				let comfy_kernel: &mut ComfyKernel = compositor.into();
-				comfy_kernel.set_activated(&shell_handle);
+				comfy_kernel.apply_keyboard_focus(&shell_handle);
 				comfy_kernel.add_window_to_active_workspace(shell_handle);
 				()
 			);

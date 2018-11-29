@@ -49,9 +49,9 @@ impl WLRPointerHandler for PointerHandler {
 	fn on_button(&mut self, compositor_handle: WLRCompositorHandle, _: WLRPointerHandle, button_event: &ButtonEvent) {
 		with_handles!([(compositor: {compositor_handle})] => {
 			let comfy_kernel: &mut ComfyKernel = compositor.into();
-            if comfy_kernel.config.global.pointer_focus_type == PointerFocusType::OnClick {
+			if comfy_kernel.config.global.pointer_focus_type == PointerFocusType::OnClick {
 				comfy_kernel.apply_focus_under_cursor();
-            }
+			}
 			let button = button_event.button();
 			let state = button_event.state();
 			let duration = Duration::from_millis(button_event.time_msec() as u64);
