@@ -127,20 +127,20 @@ fn handle_move_active_focus_right(_: &CompositorCommand, comfy_kernel: &mut Comf
 ..................................................
 */
 
-fn handle_move_active_window_up(_: &CompositorCommand, _: &mut ComfyKernel) {
-	println!("handle_move_active_window_up");
+fn handle_move_active_window_up(_: &CompositorCommand, comfy_kernel: &mut ComfyKernel) {
+	comfy_kernel.move_active_window(LayoutDirection::Up);
 }
 
-fn handle_move_active_window_down(_: &CompositorCommand, _: &mut ComfyKernel) {
-	println!("handle_move_active_window_down");
+fn handle_move_active_window_down(_: &CompositorCommand, comfy_kernel: &mut ComfyKernel) {
+	comfy_kernel.move_active_window(LayoutDirection::Down);
 }
 
-fn handle_move_active_window_left(_: &CompositorCommand, _: &mut ComfyKernel) {
-	println!("handle_move_active_window_left");
+fn handle_move_active_window_left(_: &CompositorCommand, comfy_kernel: &mut ComfyKernel) {
+	comfy_kernel.move_active_window(LayoutDirection::Left);
 }
 
-fn handle_move_active_window_right(_: &CompositorCommand, _: &mut ComfyKernel) {
-	println!("handle_move_active_window_right");
+fn handle_move_active_window_right(_: &CompositorCommand, comfy_kernel: &mut ComfyKernel) {
+	comfy_kernel.move_active_window(LayoutDirection::Right);
 }
 
 /*
