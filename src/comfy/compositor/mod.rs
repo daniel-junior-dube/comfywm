@@ -1,15 +1,18 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::Duration};
 
 use wlroots::key_events::KeyEvent as WLRKeyEvent;
 use wlroots::{
-	Area, Capability, Compositor as WLRCompositor, CompositorBuilder as WLRCompositorBuilder, Cursor as WLRCursor,
-	CursorHandle as WLRCursorHandle, KeyboardHandle as WLRKeyboardHandle, Origin, OutputLayout as WLROutputLayout,
-	OutputLayoutHandle as WLROutputLayoutHandle, Seat as WLRSeat, SeatHandle as WLRSeatHandle, Size,
+	Capability, Compositor as WLRCompositor, CompositorBuilder as WLRCompositorBuilder, Cursor as WLRCursor,
+	CursorHandle as WLRCursorHandle, KeyboardHandle as WLRKeyboardHandle, OutputLayout as WLROutputLayout,
+	OutputLayoutHandle as WLROutputLayoutHandle, Seat as WLRSeat, SeatHandle as WLRSeatHandle,
 	XCursorManager as WLRXCursorManager, XdgV6ShellState as WLRXdgV6ShellState,
 	XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle,
 };
 
-use wlroots::wlroots_sys::protocols::server_decoration::server::org_kde_kwin_server_decoration_manager::Mode as ServerDecorationMode;
+use wlroots::wlroots_sys::{
+	protocols::server_decoration::server::org_kde_kwin_server_decoration_manager::Mode as ServerDecorationMode,
+	wlr_axis_orientation, wlr_axis_source,
+};
 
 pub mod commands;
 pub mod output;
@@ -23,14 +26,12 @@ use self::output::{OutputData, OutputLayoutHandler, OutputManagerHandler};
 use self::shell::XdgV6ShellManagerHandler;
 use self::window::Window;
 use self::workspace::Workspace;
-use common::command_type::CommandType;
 use config::Config;
 use input::cursor::CursorHandler;
 use input::keyboard::XkbKeySet;
 use input::seat::SeatHandler;
 use input::InputManagerHandler;
 use layout::LayoutDirection;
-use utils::handle_helper::shell_handle_helper;
 
 /*
 ..####....####...##...##..#####....####....####...######..######...####...#####..
@@ -159,7 +160,7 @@ impl ComfyKernel {
 			);
 		}
 		if let Some(shell_handle) = shell_handle_option {
-			self.set_activated(&shell_handle);
+			self.apply_keyboard_focus(&shell_handle);
 		}
 		self.schedule_frame_for_output(&self.active_output_name);
 	}
@@ -227,7 +228,7 @@ impl ComfyKernel {
 
 		// TODO: Should fallback focus only if the containing output is the active one
 		if let Some(fallback_shell_handle) = fallback_shell_handle_option {
-			self.set_activated(&fallback_shell_handle);
+			self.apply_keyboard_focus(&fallback_shell_handle);
 		}
 		if let Some(output_name) = name_of_container_output {
 			self.schedule_frame_for_output(&output_name)
@@ -235,12 +236,8 @@ impl ComfyKernel {
 	}
 
 	/// Sets the shell of the provided shell handle as activated which means it will gain focus.
-	pub fn set_activated(&mut self, shell_handle: &WLRXdgV6ShellSurfaceHandle) {
-		dehandle!(
-			let seat_handle = self.seat_handle.clone().unwrap();
-			let keyboard_handle = self.keyboard_handle.clone().unwrap();
-			@seat = {seat_handle};
-			@keyboard = {keyboard_handle};
+	pub fn apply_keyboard_focus(&mut self, shell_handle: &WLRXdgV6ShellSurfaceHandle) {
+		with_handles!([(seat: {self.seat_handle.clone().unwrap()}), (keyboard: {self.keyboard_handle.clone().unwrap()})] => {
 			shell_handle.run(
 				|shell| {
 					shell.ping();
@@ -259,7 +256,7 @@ impl ComfyKernel {
 				}
 			).unwrap();
 			()
-		);
+		}).unwrap();
 
 		// ? Finds the containing layout to find the containing node and set it as last activated
 		for (_output_name, output_data) in self.output_data_map.iter_mut() {
@@ -267,6 +264,88 @@ impl ComfyKernel {
 				output_data.workspace.window_layout.set_as_last_activated(&shell_handle);
 			}
 		}
+	}
+
+	pub fn transfer_click_to_seat(&mut self, time: Duration, button: u32, state: u32) {
+		with_handles!([(seat: {self.seat_handle.clone().unwrap()})] => {
+			seat.pointer_notify_button(time, button, state);
+		}).unwrap();
+	}
+
+	pub fn transfer_motion_to_seat(&mut self, time: Duration) {
+		with_handles!([(cursor: {&self.cursor_handle.clone()}), (seat: {self.seat_handle.clone().unwrap()})] => {
+			let (x, y) = cursor.coords();
+
+			if let Some(window) = self.get_window_at_coordinates(x, y) {
+				let origin = window.area.origin;
+				let surface_x = x - (origin.x as f64);
+				let surface_y = y - (origin.y as f64);
+				seat.pointer_notify_motion(time, surface_x, surface_y);
+			}
+		}).unwrap();
+	}
+
+	pub fn apply_focus_under_cursor(&mut self) {
+		with_handles!([
+			(cursor: {&self.cursor_handle.clone()}),
+			(seat: {&self.seat_handle.clone().unwrap()}),
+			(keyboard: {self.keyboard_handle.clone().unwrap()})
+		] => {
+			let (x, y) = cursor.coords();
+
+			if let Some(window) = self.get_window_at_coordinates(x, y) {
+				let shell_handle = window.shell_handle;
+				let origin = window.area.origin;
+				let surface_x = x - (origin.x as f64);
+				let surface_y = y - (origin.y as f64);
+				shell_handle.run(
+					|shell| {
+						shell.ping();
+						let surface = shell.surface();
+						surface.run(|surface| {
+							if !seat.pointer_surface_has_focus(surface) {
+								if let Some(&mut WLRXdgV6ShellState::TopLevel(ref mut toplevel)) = shell.state() {
+									toplevel.set_activated(true);
+								}
+								seat.pointer_notify_enter(surface, surface_x, surface_y);
+								seat.set_keyboard(keyboard.input_device());
+								seat.keyboard_notify_enter(
+									surface,
+									&mut keyboard.keycodes(),
+									&mut keyboard.get_modifier_masks()
+								);
+							}
+						}).unwrap();
+					}
+				).unwrap();
+			} else {
+				seat.pointer_clear_focus();
+			}
+		}).unwrap();
+	}
+
+	pub fn transfer_scroll_to_seat(
+		&mut self,
+		time: Duration,
+		orientation: wlr_axis_orientation,
+		value: f64,
+		value_discrete: i32,
+		source: wlr_axis_source,
+	) {
+		with_handles!([(seat: {self.seat_handle.clone().unwrap()})] => {
+			seat.pointer_notify_axis(time, orientation, value, value_discrete, source);
+		}).unwrap();
+	}
+
+	fn get_window_at_coordinates(&mut self, x: f64, y: f64) -> Option<Window> {
+		let mut window = None;
+		for (_, output_data) in self.output_data_map.iter_mut() {
+			window = output_data.workspace.window_layout.find_window_at(x, y);
+			if window.is_some() {
+				break;
+			}
+		}
+		window
 	}
 
 	/// Returns the command associated with the provided key_set if any.

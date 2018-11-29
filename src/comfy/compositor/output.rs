@@ -70,7 +70,7 @@ impl OutputHandler {
 				width * renderer.output.scale() as i32,
 				height * renderer.output.scale() as i32
 			);
-			let render_box = Area::new(
+			let _render_box = Area::new(
 				Origin::new(window_area.origin.x, window_area.origin.y),
 				Size::new(render_width, render_height)
 			);

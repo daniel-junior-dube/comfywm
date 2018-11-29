@@ -1,9 +1,8 @@
 use std::collections::HashMap;
 
-use wlroots::{Area, IntersectionResult, Origin, Size, XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle};
+use wlroots::{Area, Origin, Size, XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle};
 
 use compositor::window::Window;
-use utils::handle_helper::shell_handle_helper;
 
 /*
 ..####....####...##..##...####...######...####...##..##..######...####..
@@ -493,6 +492,15 @@ impl Layout {
 			self.layout_tree.set_as_last_activated(node_index);
 		}
 	}
+
+	pub fn find_window_at(&mut self, x: f64, y: f64) -> Option<Window> {
+		if let Some(leaf_index) = self.layout_tree.find_leaf_at_point(x, y) {
+			if let Some(window) = self.leaf_index_to_windows_map.get(&leaf_index) {
+				return Some(window.clone());
+			}
+		}
+		None
+	}
 }
 
 /*
@@ -874,7 +882,6 @@ impl RegionBasedKAryLayoutTree {
 	/// Return the index of the node that would be the active one in the case of the active node being deleted.
 	pub fn find_fallback_node_index(&self, node_index: NodeIndex) -> NodeIndex {
 		if let Some(parent_node_index) = self.get_parent_node_index_of(node_index) {
-
 			// ? Use left sibling or right sibling as fallback
 			let mut siblings_index_option = None;
 			if let Some(Some(ref parent_node)) = self.nodes.get(parent_node_index) {
@@ -942,7 +949,6 @@ impl RegionBasedKAryLayoutTree {
 	/// If the node is the currently active one, assign the active to the fallback node.
 	/// Also removes trailing holes dynamically if the removed node is the last one in the list.
 	fn remove_node_from_list(&mut self, node_index: NodeIndex) -> Result<(), String> {
-
 		// ? Check that the node is valid
 		if !self.node_exists(node_index) {
 			return Err("Tried to remove unexistant node index from the list".to_string());
@@ -1140,6 +1146,27 @@ impl RegionBasedKAryLayoutTree {
 		}
 	}
 
+	pub fn find_leaf_at_point(&self, x: f64, y: f64) -> Option<NodeIndex> {
+		let mut indices_to_check = self.get_direct_children_indices_of(INDEX_OF_ROOT);
+		while let Some(node_index) = indices_to_check.pop() {
+			if self.node_contains_point(node_index, x, y) {
+				if self.is_leaf_node(node_index) {
+					return Some(node_index);
+				} else {
+					indices_to_check = self.get_direct_children_indices_of(node_index);
+				}
+			}
+		}
+		None
+	}
+
+	fn node_contains_point(&self, node_index: NodeIndex, x: f64, y: f64) -> bool {
+		if let Some(Some(node)) = self.nodes.get(node_index) {
+			return node.area.contains_point(x, y);
+		}
+		false
+	}
+
 	/*
 	.##...##..######..#####..
 	.##...##....##....##..##.
@@ -1322,7 +1349,7 @@ impl RegionBasedKAryLayoutTree {
 			if self.is_leaf_node(*index_of_node_to_remove) {
 				indices_of_removed_leaves.push(*index_of_node_to_remove);
 			}
-			self.remove_node_from_list(*index_of_node_to_remove);
+			self.remove_node_from_list(*index_of_node_to_remove).unwrap();
 		}
 
 		// ? If the subtree root is a container, clear the children

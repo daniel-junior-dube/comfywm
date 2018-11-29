@@ -1,0 +1,7 @@
+# POINTER
+# This section describes the pointer's behavior.
+
+# Focus handling. Choose either:
+# - "on_hover" : Sets the active window when hovering the cursor over the desired window.
+# - "on_click" : Sets the focus after a click on the desired window.
+pointer_focus_type = "on_hover"
