@@ -332,6 +332,16 @@ impl Layout {
 		}
 	}
 
+	pub fn get_active_window(&self) -> Option<Window> {
+		let active_node_index = self.layout_tree.active_node_index;
+		if active_node_index != 0 {
+			if let Some(window) = self.leaf_index_to_windows_map.get(&active_node_index) {
+				return Some(window.clone());
+			}
+		}
+		None
+	}
+
 	/// Returns a vector containing the windows indices of a windows contained in this layout.
 	/// TODO: Could put the windows in cache and update the cache only after a modification
 	pub fn get_windows(&self) -> Vec<Window> {
