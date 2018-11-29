@@ -27,20 +27,21 @@ impl WLRInputManagerHandler for InputManagerHandler {
 	fn pointer_added(&mut self, _: WLRCompositorHandle, _: WLRPointerHandle) -> Option<Box<WLRPointerHandler>> {
 		Some(Box::new(PointerHandler))
 	}
-
+	#[wlroots_dehandle(compositor, keyboard, seat)]
 	fn keyboard_added(
 		&mut self,
-		compositor: WLRCompositorHandle,
-		keyboard: WLRKeyboardHandle,
+		compositor_handle: WLRCompositorHandle,
+		keyboard_handle: WLRKeyboardHandle,
 	) -> Option<Box<WLRKeyboardHandler>> {
-		dehandle!(
-			@compositor = {compositor};
-			@keyboard = {keyboard};
+		{
+			use compositor_handle as compositor;
+			use keyboard_handle as keyboard;
 			let comfy_kernel: &mut ComfyKernel = compositor.into();
 			comfy_kernel.keyboard_handle = Some(keyboard.weak_reference());
-			@seat = {comfy_kernel.seat_handle.as_ref().unwrap()};
-			seat.set_keyboard(keyboard.input_device())
-		);
+			let seat_handle = comfy_kernel.seat_handle.as_ref().unwrap();
+			use seat_handle as seat;
+			seat.set_keyboard(keyboard.input_device());
+		}
 		Some(Box::new(KeyboardHandler))
 	}
 }

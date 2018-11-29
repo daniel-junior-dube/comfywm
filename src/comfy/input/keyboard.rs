@@ -41,33 +41,34 @@ impl KeyboardHandler {
 		comfy_kernel.notify_keyboard(key_event);
 	}
 }
+
 impl WLRKeyboardHandler for KeyboardHandler {
-	fn modifiers(&mut self, compositor: WLRCompositorHandle, keyboard_handle: WLRKeyboardHandle) {
-		dehandle!(
-			@compositor = {compositor};
-			let comfy_kernel: &mut ComfyKernel = compositor.into();
+	#[wlroots_dehandle(compositor, seat, keyboard)]
+	fn modifiers(&mut self, compositor_handle: WLRCompositorHandle, keyboard_handle: WLRKeyboardHandle) {
+		use compositor_handle as compositor;
+		use keyboard_handle as keyboard;
 
-			let seat_handle = comfy_kernel.seat_handle.clone().unwrap();
-			@seat = {seat_handle};
+		let comfy_kernel: &mut ComfyKernel = compositor.into();
 
-			@keyboard = {keyboard_handle};
+		let seat_handle = comfy_kernel.seat_handle.clone().unwrap();
+		use seat_handle as seat;
 
-			// TODO: Should we prevent the notification of the mod key if super mode is engaged?
-			let mut modifiers = keyboard.get_modifier_masks();
-			seat.keyboard_notify_modifiers(&mut modifiers);
-			()
-		);
+
+		// TODO: Should we prevent the notification of the mod key if super mode is engaged?
+		let mut modifiers = keyboard.get_modifier_masks();
+		seat.keyboard_notify_modifiers(&mut modifiers);
 	}
 
-	fn on_key(&mut self, compositor: WLRCompositorHandle, _: WLRKeyboardHandle, key_event: &WLRKeyEvent) {
-		with_handles!([(compositor: {compositor})] => {
-			let comfy_kernel: &mut ComfyKernel = compositor.into();
-			if key_event.key_state() == WLR_KEY_PRESSED {
-				self.handle_key_press(comfy_kernel, key_event);
-			} else {
-				self.handle_key_release(comfy_kernel, key_event);
-			}
-		}).unwrap();
+	#[wlroots_dehandle(compositor)]
+	fn on_key(&mut self, compositor_handle: WLRCompositorHandle, _: WLRKeyboardHandle, key_event: &WLRKeyEvent) {
+		use compositor_handle as compositor;
+		let comfy_kernel: &mut ComfyKernel = compositor.into();
+
+		if key_event.key_state() == WLR_KEY_PRESSED {
+			self.handle_key_press(comfy_kernel, key_event);
+		} else {
+			self.handle_key_release(comfy_kernel, key_event);
+		}
 	}
 }
 

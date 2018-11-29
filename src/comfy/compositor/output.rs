@@ -67,6 +67,7 @@ impl OutputHandler {
 	}
 
 	/// Renders the provided surface using the provided renderer.
+	#[wlroots_dehandle(surface)]
 	fn render_surface(
 		&self,
 		renderer: &mut Renderer,
@@ -75,58 +76,58 @@ impl OutputHandler {
 		sx: i32,
 		sy: i32,
 	) {
-		with_handles!([(surface: {surface_handle})] => {
-			let render_origin = Origin::new(
-				window_area.origin.x + sx,
-				window_area.origin.y + sy
-			);
-			let (width, height) = surface.current_state().size();
-			let render_size = Size::new(
-				width * renderer.output.scale() as i32,
-				height * renderer.output.scale() as i32
-			);
-			let render_box = Area::new(render_origin, render_size);
-			let transform = renderer.output.get_transform().invert();
-			let matrix = wlr_project_box(
-				render_box,
-				transform,
-				0.0,
-				renderer.output.transform_matrix()
-			);
-			if let Some(texture) = surface.texture().as_ref() {
-				// ? Restrict the render of the surface to the window's area
-				renderer.set_scissor_box(*window_area);
-				renderer.render_texture_with_matrix(texture, matrix);
-			}
-			surface.send_frame_done(current_time());
-		}).unwrap();
+		use surface_handle as surface;
+		let render_origin = Origin::new(
+			window_area.origin.x + sx,
+			window_area.origin.y + sy
+		);
+		let (width, height) = surface.current_state().size();
+		let render_size = Size::new(
+			width * renderer.output.scale() as i32,
+			height * renderer.output.scale() as i32
+		);
+		let render_box = Area::new(render_origin, render_size);
+		let transform = renderer.output.get_transform().invert();
+		let matrix = wlr_project_box(
+			render_box,
+			transform,
+			0.0,
+			renderer.output.transform_matrix()
+		);
+		if let Some(texture) = surface.texture().as_ref() {
+			// ? Restrict the render of the surface to the window's area
+			renderer.render_scissor(*window_area);
+			renderer.render_texture_with_matrix(texture, matrix);
+		}
+		surface.send_frame_done(current_time());
 	}
 }
 impl WLROutputHandler for OutputHandler {
 	/// Called every time the output frame is updated.
+	#[wlroots_dehandle(compositor, output)]
 	fn on_frame(&mut self, compositor_handle: WLRCompositorHandle, output_handle: WLROutputHandle) {
-		with_handles!([(compositor: {compositor_handle}), (output: {output_handle})] => {
-			let output_name = output.name().clone();
-			let comfy_kernel: &mut ComfyKernel = compositor.data.downcast_mut().unwrap();
-			let renderer = compositor.renderer
-				.as_mut()
-				.expect("Compositor was not loaded with a renderer");
-			let mut render_context = renderer.render(output, None);
+		use compositor_handle as compositor;
+		use output_handle as output;
+		let output_name = output.name().clone();
+		let comfy_kernel: &mut ComfyKernel = compositor.data.downcast_mut().unwrap();
+		let renderer = compositor.renderer
+			.as_mut()
+			.expect("Compositor was not loaded with a renderer");
+		let mut render_context = renderer.render(output, None);
 
-			// ? Clearing the screen and get indices of windows to render
-			let mut render_color = Color::black().as_rgba_slice();
-			let mut windows = vec![];
-			if let Some(OutputData {workspace, clear_color, ..}) = comfy_kernel.output_data_map.get(&output_name) {
-				render_color = *clear_color;
-				windows = workspace.window_layout.get_windows();
-			}
+		// ? Clearing the screen and get indices of windows to render
+		let mut render_color = Color::black().as_rgba_slice();
+		let mut windows = vec![];
+		if let Some(OutputData {workspace, clear_color, ..}) = comfy_kernel.output_data_map.get(&output_name) {
+			render_color = *clear_color;
+			windows = workspace.window_layout.get_windows();
+		}
 
-			// ? Clear the screen with the render color
-			render_context.clear(render_color);
+		// ? Clear the screen with the render color
+		render_context.clear(render_color);
 
-			// ? Render each window
-			windows.iter().for_each(|window_ref| self.render_window(window_ref, &mut render_context));
-		}).unwrap()
+		// ? Render each window
+		windows.iter().for_each(|window_ref| self.render_window(window_ref, &mut render_context));
 	}
 
 	/// WIP
@@ -136,23 +137,22 @@ impl WLROutputHandler for OutputHandler {
 	}
 
 	/// Called every time the output mode changes.
+	#[wlroots_dehandle(compositor, output)]
 	fn on_mode_change(&mut self, compositor_handle: WLRCompositorHandle, output_handle: WLROutputHandle) {
-		dehandle!(
-			@compositor = {compositor_handle};
-			@output = {output_handle};
-			let comfy_kernel: &mut ComfyKernel = compositor.data.downcast_mut().unwrap();
-			let output_data_map = &mut comfy_kernel.output_data_map;
-			if let Some(output_data) = output_data_map.get_mut(&output.name()) {
-				let (x, y) = output.layout_space_pos();
-				let (width, height) = output.effective_resolution();
-				output_data.workspace.window_layout.update_area_and_rebalance(
-					Area::new(
-						Origin::new(x, y),
-						Size::new(width, height)
-					)
-				);
-			}
-		);
+		use compositor_handle as compositor;
+		use output_handle as output;
+		let comfy_kernel: &mut ComfyKernel = compositor.data.downcast_mut().unwrap();
+		let output_data_map = &mut comfy_kernel.output_data_map;
+		if let Some(output_data) = output_data_map.get_mut(&output.name()) {
+			let (x, y) = output.layout_space_pos();
+			let (width, height) = output.effective_resolution();
+			output_data.workspace.window_layout.update_area_and_rebalance(
+				Area::new(
+					Origin::new(x, y),
+					Size::new(width, height)
+				)
+			);
+		}
 	}
 
 	/// Called every time the output is enabled.
@@ -176,17 +176,16 @@ impl WLROutputHandler for OutputHandler {
 	}
 
 	/// Called when an output is destroyed (e.g. unplugged).
+	#[wlroots_dehandle(compositor, output)]
 	fn destroyed(&mut self, compositor_handle: WLRCompositorHandle, output_handle: WLROutputHandle) {
-		dehandle!(
-			@compositor = {compositor_handle};
-			@output = {output_handle};
-			let comfy_kernel: &mut ComfyKernel = compositor.data.downcast_mut().unwrap();
-			let output_name = output.name();
-			info!("Output destroyed, named: {}", output_name);
-			comfy_kernel.output_data_map.remove(&output_name);
-			debug!("Removed OutputData from data_map! Nb of total entries: {}", comfy_kernel.output_data_map.len());
-			()
-		);
+		use compositor_handle as compositor;
+		use output_handle as output;
+		let comfy_kernel: &mut ComfyKernel = compositor.data.downcast_mut().unwrap();
+		let output_name = output.name();
+		info!("Output destroyed, named: {}", output_name);
+		comfy_kernel.output_data_map.remove(&output_name);
+		debug!("Removed OutputData from data_map! Nb of total entries: {}", comfy_kernel.output_data_map.len());
+		()
 	}
 }
 
@@ -194,15 +193,18 @@ impl WLROutputHandler for OutputHandler {
 pub struct OutputManagerHandler;
 impl WLROutputManagerHandler for OutputManagerHandler {
 	/// Called whenever an output is added.
+	#[wlroots_dehandle(compositor, output, output_layout, cursor)]
 	fn output_added<'output>(
 		&mut self,
 		compositor_handle: WLRCompositorHandle,
 		output_builder: WLROutputBuilder<'output>,
 	) -> Option<WLROutputBuilderResult<'output>> {
-		let mut result = output_builder.build_best_mode(OutputHandler);
-		dehandle!(
-			@compositor = {compositor_handle};
-			@output = {&mut result.output};
+		let result = output_builder.build_best_mode(OutputHandler);
+		{
+			let output_handle = &result.output;
+			use compositor_handle as compositor;
+			use output_handle as output;
+
 			let comfy_kernel: &mut ComfyKernel = compositor.data.downcast_mut().unwrap();
 			comfy_kernel.active_output_name = output.name();
 			let xcursor_manager = &mut comfy_kernel.xcursor_manager;
@@ -211,8 +213,8 @@ impl WLROutputManagerHandler for OutputManagerHandler {
 			let cursor_handle = &mut comfy_kernel.cursor_handle;
 			let output_data_map = &mut comfy_kernel.output_data_map;
 
-			@output_layout = {output_layout_handle};
-			@cursor = {cursor_handle};
+			use output_layout_handle as output_layout;
+			use cursor_handle as cursor;
 
 			output_layout.add_auto(output);
 			cursor.attach_output_layout(output_layout);
@@ -234,8 +236,7 @@ impl WLROutputManagerHandler for OutputManagerHandler {
 					)
 				)
 			);
-			()
-		);
+		}
 		Some(result)
 	}
 }
