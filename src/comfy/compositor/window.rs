@@ -20,10 +20,7 @@ pub struct Window {
 
 impl Window {
 	pub fn new(shell_handle: WLRXdgV6ShellSurfaceHandle, area: Area) -> Self {
-		Window {
-			shell_handle,
-			area,
-		}
+		Window { shell_handle, area }
 	}
 
 	pub fn new_empty_area(shell_handle: WLRXdgV6ShellSurfaceHandle) -> Self {

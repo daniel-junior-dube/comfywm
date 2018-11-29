@@ -11,6 +11,7 @@ use common::colors::Color;
 use compositor::window::Window;
 use compositor::workspace::Workspace;
 use compositor::ComfyKernel;
+use utils::handle_helper;
 
 /*
 ..####...##..##..######..#####...##..##..######..#####....####...######...####..
@@ -95,9 +96,15 @@ impl OutputHandler {
 			renderer.output.transform_matrix()
 		);
 		if let Some(texture) = surface.texture().as_ref() {
-			// ? Restrict the render of the surface to the window's area
-			renderer.render_scissor(*window_area);
-			renderer.render_texture_with_matrix(texture, matrix);
+			// ? Restrict the render of the surface to the window's area if top level
+			// TODO: Update set and clear scissor in a wrapper method
+			if handle_helper::surface_helper::is_top_level(surface) {
+				renderer.render_scissor(*window_area);
+				renderer.render_texture_with_matrix(texture, matrix);
+				renderer.render_scissor(None);
+			} else {
+				renderer.render_texture_with_matrix(texture, matrix);
+			}
 		}
 		surface.send_frame_done(current_time());
 	}
