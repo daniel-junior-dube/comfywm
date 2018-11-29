@@ -348,15 +348,10 @@ impl Layout {
 		self.layout_tree.update_area(area)
 	}
 
-	/// Calls a rebalance of the layout tree data structure.
-	pub fn rebalance_tree(&mut self) {
-		self.layout_tree.rebalance();
-	}
-
 	/// Updates the area of the layout then rebalances the tree from the root.
 	pub fn update_area_and_rebalance(&mut self, area: Area) {
 		self.update_area(area);
-		self.rebalance_tree();
+		self.rebalance();
 	}
 
 	/// Returns the render area of the layout.
