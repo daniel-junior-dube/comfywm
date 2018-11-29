@@ -13,60 +13,61 @@ use config::global::PointerFocusType;
 
 pub struct PointerHandler;
 impl WLRPointerHandler for PointerHandler {
+
+	#[wlroots_dehandle(compositor)]
 	fn on_motion_absolute(
 		&mut self,
 		compositor_handle: WLRCompositorHandle,
 		_: WLRPointerHandle,
 		event: &AbsoluteMotionEvent,
 	) {
-		with_handles!([(compositor: {compositor_handle})] => {
-			let comfy_kernel: &mut ComfyKernel = compositor.into();
-			with_handles!([(cursor: {&comfy_kernel.cursor_handle.clone()})] => {
-				let (absolute_x, absolute_y) = event.pos();
-				cursor.warp_absolute(event.device(), absolute_x, absolute_y);
-			}).unwrap();
+		use compositor_handle as compositor;
+		let comfy_kernel: &mut ComfyKernel = compositor.into();
 
-			if comfy_kernel.config.global.pointer_focus_type == PointerFocusType::OnHover {
-				comfy_kernel.apply_focus_under_cursor();
-			}
+		comfy_kernel.warp_cursor(event);
 
-			let duration = Duration::from_millis(event.time_msec() as u64);
-			comfy_kernel.transfer_motion_to_seat(duration);
+		if comfy_kernel.config.global.pointer_focus_type == PointerFocusType::OnHover {
+			comfy_kernel.apply_focus_under_cursor();
+		}
 
-		}).unwrap();
+		let duration = Duration::from_millis(event.time_msec() as u64);
+		comfy_kernel.transfer_motion_to_seat(duration);
 	}
 
-	fn on_motion(&mut self, compositor: WLRCompositorHandle, _: WLRPointerHandle, event: &MotionEvent) {
-		dehandle!(
-			@compositor = {compositor};
-			let comfy_kernel: &mut ComfyKernel = compositor.into();
-			let (delta_x, delta_y) = event.delta();
-			@cursor = {&comfy_kernel.cursor_handle};
-			cursor.move_to(event.device(), delta_x, delta_y)
-		);
+	#[wlroots_dehandle(compositor, cursor)]
+	fn on_motion(&mut self, compositor_handle: WLRCompositorHandle, _: WLRPointerHandle, event: &MotionEvent) {
+		use compositor_handle as compositor;
+		let comfy_kernel: &mut ComfyKernel = compositor.into();
+		let (delta_x, delta_y) = event.delta();
+		let cursor_handle = &comfy_kernel.cursor_handle;
+		use cursor_handle as cursor;
+		cursor.move_to(event.device(), delta_x, delta_y)
 	}
 
+	#[wlroots_dehandle(compositor)]
 	fn on_button(&mut self, compositor_handle: WLRCompositorHandle, _: WLRPointerHandle, button_event: &ButtonEvent) {
-		with_handles!([(compositor: {compositor_handle})] => {
-			let comfy_kernel: &mut ComfyKernel = compositor.into();
-			if comfy_kernel.config.global.pointer_focus_type == PointerFocusType::OnClick {
-				comfy_kernel.apply_focus_under_cursor();
-			}
-			let button = button_event.button();
-			let state = button_event.state();
-			let duration = Duration::from_millis(button_event.time_msec() as u64);
-			comfy_kernel.transfer_click_to_seat(duration, button, state as u32)
-		}).unwrap();
+		use compositor_handle as compositor;
+
+		let comfy_kernel: &mut ComfyKernel = compositor.into();
+		if comfy_kernel.config.global.pointer_focus_type == PointerFocusType::OnClick {
+			comfy_kernel.apply_focus_under_cursor();
+		}
+
+		let button = button_event.button();
+		let state = button_event.state();
+		let duration = Duration::from_millis(button_event.time_msec() as u64);
+		comfy_kernel.transfer_click_to_seat(duration, button, state as u32)
 	}
 
+	#[wlroots_dehandle(compositor)]
 	fn on_axis(&mut self, compositor_handle: WLRCompositorHandle, _: WLRPointerHandle, axis_event: &AxisEvent) {
-		with_handles!([(compositor: {compositor_handle})] => {
-			let comfy_kernel: &mut ComfyKernel = compositor.into();
-			let duration = Duration::from_millis(axis_event.time_msec() as u64);
-			let orientation = axis_event.orientation();
-			let value = axis_event.delta();
-			let source = axis_event.source();
-			comfy_kernel.transfer_scroll_to_seat(duration, orientation, value, value as i32, source)
-		}).unwrap();
+		use compositor_handle as compositor;
+
+		let comfy_kernel: &mut ComfyKernel = compositor.into();
+		let duration = Duration::from_millis(axis_event.time_msec() as u64);
+		let orientation = axis_event.orientation();
+		let value = axis_event.delta();
+		let source = axis_event.source();
+		comfy_kernel.transfer_scroll_to_seat(duration, orientation, value, value as i32, source)
 	}
 }

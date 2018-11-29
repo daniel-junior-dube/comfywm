@@ -21,14 +21,20 @@ modkey = "Control"
 # "<keycode>(+<keycode>)*" = "<comfy_command> [<arguments>]"
 
 [keybindings]
-"$mod+Shift+J" = "move_active_window_up"
-"$mod+Shift+K" = "move_active_window_down"
-"$mod+Shift+H" = "move_active_window_left"
-"$mod+Shift+L" = "move_active_window_right"
+"$mod+Shift+k" = "move_active_window_up"
+"$mod+Shift+j" = "move_active_window_down"
+"$mod+Shift+h" = "move_active_window_left"
+"$mod+Shift+l" = "move_active_window_right"
 
-"$mod+H" = "move_focus_to_next_window"
-"$mod+L" = "move_focus_to_previous_window"
+"$mod+k" = "move_active_focus_up"
+"$mod+j" = "move_active_focus_down"
+"$mod+h" = "move_active_focus_left"
+"$mod+l" = "move_active_focus_right"
 
-"$mod+Return" = "exec weston-terminal"
-"$mod+1" = "exec firefox"
+"$mod+Up" = "set_insert_direction_up"
+"$mod+Down" = "set_insert_direction_down"
+"$mod+Left" = "set_insert_direction_left"
+"$mod+Right" = "set_insert_direction_right"
+
+"$mod+Return" = "exec xfce4-terminal"
 "$mod+Escape" = "terminate"

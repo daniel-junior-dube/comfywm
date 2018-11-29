@@ -1,6 +1,7 @@
 use std::{collections::HashMap, time::Duration};
 
 use wlroots::key_events::KeyEvent as WLRKeyEvent;
+use wlroots::pointer_events::AbsoluteMotionEvent;
 use wlroots::{
 	Capability, Compositor as WLRCompositor, CompositorBuilder as WLRCompositorBuilder, Cursor as WLRCursor,
 	CursorHandle as WLRCursorHandle, KeyboardHandle as WLRKeyboardHandle, OutputLayout as WLROutputLayout,
@@ -131,20 +132,19 @@ impl ComfyKernel {
 	}
 
 	/// Schedule a frame of the output which the name match with the provided string
+	#[wlroots_dehandle(layout, output)]
 	pub fn schedule_frame_for_output(&self, output_name: &str) {
 		let output_layout_handle = self.output_layout_handle.clone();
-		with_handles!([(layout: {output_layout_handle})] => {
-			let mut found = false;
-			layout.outputs().iter_mut().any(|(ref mut output_handle, _)| {
-				with_handles!([(output: {output_handle})] => {
-					if output.name() == output_name {
-						output.schedule_frame();
-						found = true;
-					}
-				}).unwrap();
-				found
-			});
-		}).unwrap();
+		use output_layout_handle as layout;
+		let mut found = false;
+		layout.outputs().iter_mut().any(|(ref mut output_handle, _)| {
+			use output_handle as output;
+				if output.name() == output_name {
+					output.schedule_frame();
+					found = true;
+				}
+			found
+		});
 	}
 
 	pub fn move_cursor_in_active_output(&mut self, direction: LayoutDirection) {
@@ -234,27 +234,29 @@ impl ComfyKernel {
 	}
 
 	/// Sets the shell of the provided shell handle as activated which means it will gain focus.
+	#[wlroots_dehandle(seat, keyboard, shell, surface)]
 	pub fn apply_keyboard_focus(&mut self, shell_handle: &WLRXdgV6ShellSurfaceHandle) {
-		with_handles!([(seat: {self.seat_handle.clone().unwrap()}), (keyboard: {self.keyboard_handle.clone().unwrap()})] => {
-			shell_handle.run(
-				|shell| {
-					shell.ping();
-					let surface = shell.surface();
-					surface.run(|surface| {
-						if let Some(&mut WLRXdgV6ShellState::TopLevel(ref mut toplevel)) = shell.state() {
-							toplevel.set_activated(true);
-						}
-						seat.set_keyboard(keyboard.input_device());
-						seat.keyboard_notify_enter(
-							surface,
-							&mut keyboard.keycodes(),
-							&mut keyboard.get_modifier_masks()
-						);
-					}).unwrap();
-				}
-			).unwrap();
-			()
-		}).unwrap();
+		let seat_handle = self.seat_handle.clone().unwrap();
+		let keyboard_handle = self.keyboard_handle.clone().unwrap();
+
+		use seat_handle as seat;
+		use keyboard_handle as keyboard;
+		use shell_handle as shell;
+
+		shell.ping();
+
+		let surface_handle = shell.surface();
+		use surface_handle as surface;
+
+		if let Some(&mut WLRXdgV6ShellState::TopLevel(ref mut toplevel)) = shell.state() {
+			toplevel.set_activated(true);
+		}
+		seat.set_keyboard(keyboard.input_device());
+		seat.keyboard_notify_enter(
+			surface,
+			&mut keyboard.keycodes(),
+			&mut keyboard.get_modifier_masks()
+		);
 
 		// ? Finds the containing layout to find the containing node and set it as last activated
 		for (_output_name, output_data) in self.output_data_map.iter_mut() {
@@ -264,64 +266,73 @@ impl ComfyKernel {
 		}
 	}
 
-	pub fn transfer_click_to_seat(&mut self, time: Duration, button: u32, state: u32) {
-		with_handles!([(seat: {self.seat_handle.clone().unwrap()})] => {
-			seat.pointer_notify_button(time, button, state);
-		}).unwrap();
-	}
-
-	pub fn transfer_motion_to_seat(&mut self, time: Duration) {
-		with_handles!([(cursor: {&self.cursor_handle.clone()}), (seat: {self.seat_handle.clone().unwrap()})] => {
-			let (x, y) = cursor.coords();
-
-			if let Some(window) = self.get_window_at_coordinates(x, y) {
-				let origin = window.area.origin;
-				let surface_x = x - (origin.x as f64);
-				let surface_y = y - (origin.y as f64);
-				seat.pointer_notify_motion(time, surface_x, surface_y);
-			}
-		}).unwrap();
-	}
-
+	#[wlroots_dehandle(cursor, keyboard, seat, shell, surface)]
 	pub fn apply_focus_under_cursor(&mut self) {
-		with_handles!([
-			(cursor: {&self.cursor_handle.clone()}),
-			(seat: {&self.seat_handle.clone().unwrap()}),
-			(keyboard: {self.keyboard_handle.clone().unwrap()})
-		] => {
-			let (x, y) = cursor.coords();
+		let cursor_handle = &self.cursor_handle.clone();
+		let seat_handle = &self.seat_handle.clone().unwrap();
+		let keyboard_handle = self.keyboard_handle.clone().unwrap();
 
-			if let Some(window) = self.get_window_at_coordinates(x, y) {
-				let shell_handle = window.shell_handle;
-				let origin = window.area.origin;
-				let surface_x = x - (origin.x as f64);
-				let surface_y = y - (origin.y as f64);
-				shell_handle.run(
-					|shell| {
-						shell.ping();
-						let surface = shell.surface();
-						surface.run(|surface| {
-							if !seat.pointer_surface_has_focus(surface) {
-								if let Some(&mut WLRXdgV6ShellState::TopLevel(ref mut toplevel)) = shell.state() {
-									toplevel.set_activated(true);
-								}
-								seat.pointer_notify_enter(surface, surface_x, surface_y);
-								seat.set_keyboard(keyboard.input_device());
-								seat.keyboard_notify_enter(
-									surface,
-									&mut keyboard.keycodes(),
-									&mut keyboard.get_modifier_masks()
-								);
-							}
-						}).unwrap();
-					}
-				).unwrap();
-			} else {
-				seat.pointer_clear_focus();
+		use cursor_handle as cursor;
+		use seat_handle as seat;
+		use keyboard_handle as keyboard;
+
+		let (x, y) = cursor.coords();
+
+		if let Some(window) = self.get_window_at_coordinates(x, y) {
+			let shell_handle = window.shell_handle;
+			let origin = window.area.origin;
+			let surface_x = x - (origin.x as f64);
+			let surface_y = y - (origin.y as f64);
+			use shell_handle as shell;
+
+			shell.ping();
+			let surface_handle = shell.surface();
+			use surface_handle as surface;
+
+			if !seat.pointer_surface_has_focus(surface) {
+				if let Some(&mut WLRXdgV6ShellState::TopLevel(ref mut toplevel)) = shell.state() {
+					toplevel.set_activated(true);
+				}
+				seat.pointer_notify_enter(surface, surface_x, surface_y);
+				seat.set_keyboard(keyboard.input_device());
+				seat.keyboard_notify_enter(
+					surface,
+					&mut keyboard.keycodes(),
+					&mut keyboard.get_modifier_masks()
+				);
 			}
-		}).unwrap();
+		} else {
+			seat.pointer_clear_focus();
+		}
 	}
 
+	#[wlroots_dehandle(seat)]
+	pub fn transfer_click_to_seat(&mut self, time: Duration, button: u32, state: u32) {
+		let seat_handle = self.seat_handle.clone().unwrap();
+		use seat_handle as seat;
+
+		seat.pointer_notify_button(time, button, state);
+	}
+
+	#[wlroots_dehandle(cursor, seat)]
+	pub fn transfer_motion_to_seat(&mut self, time: Duration) {
+		let cursor_handle = &self.cursor_handle.clone();
+		let seat_handle = self.seat_handle.clone().unwrap();
+
+		use seat_handle as seat;
+		use cursor_handle as cursor;
+
+		let (x, y) = cursor.coords();
+
+		if let Some(window) = self.get_window_at_coordinates(x, y) {
+			let origin = window.area.origin;
+			let surface_x = x - (origin.x as f64);
+			let surface_y = y - (origin.y as f64);
+			seat.pointer_notify_motion(time, surface_x, surface_y);
+		}
+	}
+
+	#[wlroots_dehandle(seat)]
 	pub fn transfer_scroll_to_seat(
 		&mut self,
 		time: Duration,
@@ -330,9 +341,10 @@ impl ComfyKernel {
 		value_discrete: i32,
 		source: wlr_axis_source,
 	) {
-		with_handles!([(seat: {self.seat_handle.clone().unwrap()})] => {
-			seat.pointer_notify_axis(time, orientation, value, value_discrete, source);
-		}).unwrap();
+		let seat_handle = self.seat_handle.clone().unwrap();
+		use seat_handle as seat;
+
+		seat.pointer_notify_axis(time, orientation, value, value_discrete, source);
 	}
 
 	fn get_window_at_coordinates(&mut self, x: f64, y: f64) -> Option<Window> {
@@ -346,6 +358,15 @@ impl ComfyKernel {
 		window
 	}
 
+	#[wlroots_dehandle(cursor)]
+	pub fn warp_cursor(&self, event: &AbsoluteMotionEvent) {
+		let cursor_handle = &self.cursor_handle;
+		use cursor_handle as cursor;
+
+		let (absolute_x, absolute_y) = event.pos();
+		cursor.warp_absolute(event.device(), absolute_x, absolute_y);
+	}
+
 	/// Returns the command associated with the provided key_set if any.
 	pub fn command_for_keyset(&self, key_set: &XkbKeySet) -> Option<Command> {
 		if self.config.keybindings.bindings.contains_key(&key_set) {
@@ -356,16 +377,17 @@ impl ComfyKernel {
 		}
 	}
 
+	#[wlroots_dehandle(seat)]
 	pub fn notify_keyboard(&mut self, key_event: &WLRKeyEvent) {
 		let seat_handle = self.seat_handle.clone().unwrap();
-		with_handles!([(seat: {seat_handle})] => {
-			debug!("Notifying seat of keypress: time_msec: '{:?}' keycode: '{}' key_state: '{}'", key_event.time_msec(), key_event.keycode(), key_event.key_state() as u32);
-			seat.keyboard_notify_key(
-				key_event.time_msec(),
-				key_event.keycode(),
-				key_event.key_state() as u32
-			);
-		}).unwrap();
+		use seat_handle as seat;
+
+		debug!("Notifying seat of keypress: time_msec: '{:?}' keycode: '{}' key_state: '{}'", key_event.time_msec(), key_event.keycode(), key_event.key_state() as u32);
+		seat.keyboard_notify_key(
+			key_event.time_msec(),
+			key_event.keycode(),
+			key_event.key_state() as u32
+		);
 	}
 }
 
