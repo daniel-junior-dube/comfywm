@@ -169,17 +169,27 @@ impl ComfyKernel {
 		self.cursor_direction = direction;
 	}
 
+	pub fn move_active_window(&mut self, direction: LayoutDirection) {
+		if let Some(OutputData { workspace, .. }) = self.output_data_map.get_mut(&self.active_output_name) {
+			workspace.window_layout.move_active_window(&direction);
+		} else {
+			error!(
+				"Failed to get output data for active output: {}",
+				self.active_output_name
+			);
+		}
+		self.schedule_frame_for_output(&self.active_output_name);
+	}
+
 	/// Add the provided shell handle as a new window inside the active workspace
 	pub fn add_window_to_active_workspace(&mut self, shell_handle: WLRXdgV6ShellSurfaceHandle) {
 		let current_cursor_direction = self.cursor_direction.clone();
 		if let Some(OutputData { workspace, .. }) = self.output_data_map.get_mut(&self.active_output_name) {
 			// TODO: Handle manual direction change for insertion
-			match workspace.window_layout.add_window(
-				Window::new_empty_area(shell_handle),
-				&current_cursor_direction,
-				true,
-				true,
-			) {
+			match workspace
+				.window_layout
+				.add_shell_handle(shell_handle, &current_cursor_direction, true, true)
+			{
 				Err(e) => error!("{}", e),
 				Ok(_) => {}
 			}
