@@ -18,6 +18,7 @@ const USER_GLOBAL_CONFIG_PATH: &str = "/.config/comfywm/global.toml";
 pub struct Config {
 	pub keybindings: Keybindings,
 	pub global: Global,
+	pub wallpaper_path: Option<String>,
 }
 
 impl Config {
@@ -41,7 +42,14 @@ impl Config {
 			}
 		};
 
-		Config { keybindings, global }
+		// TODO: Get the wallpaper path from the config
+		let wallpaper_path = Some("data/wallpaper.jpg".to_string());
+
+		Config {
+			keybindings,
+			global,
+			wallpaper_path,
+		}
 	}
 }
 

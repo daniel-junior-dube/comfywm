@@ -29,6 +29,7 @@ extern crate log4rs;
 extern crate strum;
 #[macro_use]
 extern crate strum_macros;
+extern crate image;
 
 use wlroots::utils::{init_logging as wlr_init_logging, WLR_DEBUG};
 
