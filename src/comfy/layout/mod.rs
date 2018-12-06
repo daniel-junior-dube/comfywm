@@ -332,14 +332,12 @@ impl Layout {
 		}
 	}
 
-	/// Returns a vector containing the windows indices of a windows contained in this layout.
-	/// TODO: Could put the windows in cache and update the cache only after a modification
-	pub fn get_windows(&self) -> Vec<Window> {
+	/// Applies the provided function to each windows in the layout.
+	pub fn for_each_window<F>(&mut self, mut f: F) where F: FnMut(&mut Window) {
 		self
 			.leaf_index_to_windows_map
-			.iter()
-			.map(|(_node_index, window)| window.clone())
-			.collect()
+			.iter_mut()
+			.for_each(|(_, window)| f(window))
 	}
 
 	/// Updates the render area of the layout.
@@ -411,7 +409,11 @@ impl Layout {
 		for index_of_resized_node in indices_of_resized_nodes.iter() {
 			if let Some(window) = self.leaf_index_to_windows_map.get_mut(index_of_resized_node) {
 				let node_area = self.layout_tree.get_node_area(*index_of_resized_node).unwrap();
-				window.resize(&node_area);
+				if window.area.is_empty() {
+					window.resize(node_area);
+				} else {
+					window.start_animation(node_area);
+				}
 			}
 		}
 	}
