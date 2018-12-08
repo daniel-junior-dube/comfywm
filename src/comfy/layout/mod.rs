@@ -317,6 +317,8 @@ impl LayoutNode {
 */
 
 pub struct Layout {
+	/// Index of the fullscreen window.
+	fullscreen_window_index: Option<NodeIndex>,
 	/// Key value storage which pairs the index of the node in the tree and the window.
 	leaf_index_to_windows_map: HashMap<NodeIndex, Window>,
 	/// Tree data structure that builds the areas for the windows and container
@@ -327,8 +329,32 @@ impl Layout {
 	/// Create a new layout that occupates the space of the provided area
 	pub fn new(output_area: Area) -> Self {
 		Layout {
+			fullscreen_window_index: None,
 			leaf_index_to_windows_map: HashMap::new(),
 			layout_tree: RegionBasedKAryLayoutTree::new(output_area),
+		}
+	}
+
+
+	/// Sets or unsets the fullscreen active window.
+	pub fn toggle_active_window_fullscreen(&mut self) {
+		if !self.layout_tree.active_node_is_root() {
+			if let Some(fullscreen_window_index) = self.fullscreen_window_index {
+				let area_of_node = self.layout_tree.get_node_area(fullscreen_window_index).unwrap();
+				if let Some(fullscreen_window) = self.leaf_index_to_windows_map.get_mut(&fullscreen_window_index) {
+					fullscreen_window.toggle_fullscreen(false);
+					fullscreen_window.resize(area_of_node);
+					self.fullscreen_window_index = None;
+				}
+			} else {
+				let active_node_index = self.layout_tree.active_node_index;
+				let area_of_root = self.layout_tree.area().unwrap();
+				if let Some(active_leaf) = self.leaf_index_to_windows_map.get_mut(&active_node_index) {
+					active_leaf.toggle_fullscreen(true);
+					active_leaf.resize(area_of_root);
+					self.fullscreen_window_index = Some(active_node_index);
+				}
+			}
 		}
 	}
 
@@ -344,10 +370,17 @@ impl Layout {
 
 	/// Applies the provided function to each windows in the layout.
 	pub fn for_each_window<F>(&mut self, mut f: F) where F: FnMut(&mut Window) {
-		self
-			.leaf_index_to_windows_map
-			.iter_mut()
-			.for_each(|(_, window)| f(window))
+		if let Some(fullscreen_window_index) = self.fullscreen_window_index {
+			self
+				.leaf_index_to_windows_map
+				.get_mut(&fullscreen_window_index)
+				.map(|window| f(window));
+		} else {
+			self
+				.leaf_index_to_windows_map
+				.iter_mut()
+				.for_each(|(_, window)| f(window));
+		}
 	}
 
 	/// Updates the render area of the layout.
@@ -398,7 +431,7 @@ impl Layout {
 		&self,
 		direction: &LayoutDirection,
 	) -> Option<WLRXdgV6ShellSurfaceHandle> {
-		if self.layout_tree.active_node_index == INDEX_OF_ROOT {
+		if self.layout_tree.active_node_is_root() {
 			None
 		} else {
 			if let Some(closest_leaf_index) = self
@@ -418,11 +451,14 @@ impl Layout {
 		let indices_of_resized_nodes = self.layout_tree.rebalance();
 		for index_of_resized_node in indices_of_resized_nodes.iter() {
 			if let Some(window) = self.leaf_index_to_windows_map.get_mut(index_of_resized_node) {
-				let node_area = self.layout_tree.get_node_area(*index_of_resized_node).unwrap();
-				if window.area.is_empty() {
-					window.resize(node_area);
-				} else {
-					window.start_animation(node_area);
+				// ? Rebalance doesn't affect fullscreen window
+				if !window.is_fullscreen {
+					let node_area = self.layout_tree.get_node_area(*index_of_resized_node).unwrap();
+					if window.area.is_empty() {
+						window.resize(node_area);
+					} else {
+						window.start_animation(node_area);
+					}
 				}
 			}
 		}
@@ -444,7 +480,7 @@ impl Layout {
 		let index_of_new_node = self
 			.layout_tree
 			.add_new_empty_node(LayoutAxis::Horizontal, INDEX_OF_ROOT);
-		let index_of_parent_option = if self.layout_tree.active_node_index == INDEX_OF_ROOT {
+		let index_of_parent_option = if self.layout_tree.active_node_is_root() {
 			self.layout_tree.move_index_under_root(index_of_new_node)
 		} else {
 			self
@@ -454,7 +490,7 @@ impl Layout {
 
 		// ? If a parent was return, we set the window node as activated, else we undo the insertion.
 		if index_of_parent_option.is_some() {
-			if set_as_last_activated {
+			if set_as_last_activated && !self.has_fullscreen_window() {
 				self.layout_tree.set_as_last_activated(index_of_new_node);
 			}
 			self.leaf_index_to_windows_map.insert(index_of_new_node, window);
@@ -469,14 +505,31 @@ impl Layout {
 		Ok(())
 	}
 
+	/// Returns true if the layout contains a fullscreen window
+	pub fn has_fullscreen_window(&self) -> bool {
+		self.fullscreen_window_index.is_some()
+	}
+
 	/// Moves the actives window in a direction inside the layout.
 	pub fn move_active_window(&mut self, direction: &LayoutDirection) {
-		if self.layout_tree.active_node_index == INDEX_OF_ROOT {
+		if self.has_fullscreen_window() {
+			return;
+		}
+		if self.layout_tree.active_node_is_root() {
 			return;
 		}
 
 		self.layout_tree.move_active_node(direction);
 		self.rebalance();
+	}
+
+	/// Returns true if the provided node_index is associated with the fullscreen node
+	fn node_is_fullscreen(&self, node_index: NodeIndex) -> bool {
+		if let Some(fullscreen_node_index) = self.fullscreen_window_index {
+			fullscreen_node_index == node_index
+		} else {
+			false
+		}
 	}
 
 	/// If the layout contains a window associated with the provided xdg shell surface handle, we remove it from the layout.
@@ -487,6 +540,9 @@ impl Layout {
 		rebalance_after_removal: bool,
 	) -> Result<(), String> {
 		if let Some(index_of_node_containing_shell) = self.index_of_node_containing_shell_handle(shell_handle) {
+			if self.node_is_fullscreen(index_of_node_containing_shell) {
+				self.fullscreen_window_index = None;
+			}
 			let removed_leaves = self.layout_tree.remove_node(index_of_node_containing_shell)?;
 
 			// ? If no leaf was removed, there must be a mistake
@@ -518,12 +574,22 @@ impl Layout {
 	}
 
 	pub fn find_window_at(&mut self, x: f64, y: f64) -> Option<Window> {
-		if let Some(leaf_index) = self.layout_tree.find_leaf_at_point(x, y) {
-			if let Some(window) = self.leaf_index_to_windows_map.get(&leaf_index) {
-				return Some(window.clone());
-			}
+		let mut window_option = None;
+
+		// ? Find index of node at position
+		let node_index_at_position = if let Some(fullscreen_window_index) = self.fullscreen_window_index {
+			// TODO: Check fullscreen window's popups first (since they act as overlay)
+			Some(fullscreen_window_index)
+		} else {
+			// TODO: Check all popup first (since they act as overlay)
+			self.layout_tree.find_leaf_at_point(x, y)
+		};
+
+		// ? Clone window for return value
+		if let Some(node_index) = node_index_at_position {
+			window_option = self.leaf_index_to_windows_map.get(&node_index).cloned();
 		}
-		None
+		window_option
 	}
 }
 
@@ -560,6 +626,11 @@ impl RegionBasedKAryLayoutTree {
 			nodes: vec![Some(root_node)],
 			active_node_index: INDEX_OF_ROOT,
 		}
+	}
+
+	/// Returns `true` if the active node is the root node.
+	pub fn active_node_is_root(&self) -> bool {
+		self.active_node_index == INDEX_OF_ROOT
 	}
 
 	/// Updates the render area of the layout.
@@ -891,7 +962,7 @@ impl RegionBasedKAryLayoutTree {
 		direction: &LayoutDirection,
 	) -> Option<NodeIndex> {
 		let active_node_index = self.active_node_index;
-		let active_node_is_root = active_node_index == INDEX_OF_ROOT;
+		let active_node_is_root = self.active_node_is_root();
 		let parent_node_index = if active_node_is_root {
 			0
 		} else {

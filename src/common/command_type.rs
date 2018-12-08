@@ -26,5 +26,6 @@ pub enum CommandType {
 	MoveActiveWindowRight,
 	MoveFocusToNextWindow,
 	MoveFocusToPreviousWindow,
+	ToggleActiveWindowFullscreen,
 	CloseActiveWindow,
 }

@@ -18,18 +18,30 @@ use utils::area_animation::AreaAnimation;
 pub struct Window {
 	pub shell_handle: WLRXdgV6ShellSurfaceHandle,
 	pub area: Area,
+	pub is_fullscreen: bool,
 	current_area_animation: Option<AreaAnimation>,
 }
 
 impl Window {
 	pub fn new(shell_handle: WLRXdgV6ShellSurfaceHandle, area: Area) -> Self {
-		Window { shell_handle, area, current_area_animation: None }
+		Window { shell_handle, area, is_fullscreen: false, current_area_animation: None }
 	}
 
 	/// Creates a window with an empty area.
 	pub fn new_empty_area(shell_handle: WLRXdgV6ShellSurfaceHandle) -> Self {
 		let area = Area::new(Origin::new(0, 0), Size::new(0, 0));
 		Window::new(shell_handle, area)
+	}
+
+	pub fn toggle_fullscreen(&mut self, is_fullscreen: bool) {
+		self.is_fullscreen = is_fullscreen;
+		self
+				.shell_handle
+				.run(|shell| {
+					if let Some(&mut WLRXdgV6ShellState::TopLevel(ref mut toplevel)) = shell.state() {
+						toplevel.set_fullscreen(is_fullscreen);
+					}
+				}).unwrap();
 	}
 
 	/// Sets the top level shell as maximized.
