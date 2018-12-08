@@ -7,6 +7,7 @@
 ........................................
 */
 
+pub mod graphics;
 pub mod handle_helper;
 pub mod logger;
 pub mod animation;

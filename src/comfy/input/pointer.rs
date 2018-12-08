@@ -13,7 +13,6 @@ use config::global::PointerFocusType;
 
 pub struct PointerHandler;
 impl WLRPointerHandler for PointerHandler {
-
 	#[wlroots_dehandle(compositor)]
 	fn on_motion_absolute(
 		&mut self,
