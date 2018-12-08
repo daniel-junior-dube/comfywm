@@ -53,7 +53,6 @@ impl WLRKeyboardHandler for KeyboardHandler {
 		let seat_handle = comfy_kernel.seat_handle.clone().unwrap();
 		use seat_handle as seat;
 
-
 		// TODO: Should we prevent the notification of the mod key if super mode is engaged?
 		let mut modifiers = keyboard.get_modifier_masks();
 		seat.keyboard_notify_modifiers(&mut modifiers);

@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::{collections::HashMap, time::Duration};
 
 use wlroots::key_events::KeyEvent as WLRKeyEvent;
@@ -5,7 +6,7 @@ use wlroots::pointer_events::AbsoluteMotionEvent;
 use wlroots::{
 	Capability, Compositor as WLRCompositor, CompositorBuilder as WLRCompositorBuilder, Cursor as WLRCursor,
 	CursorHandle as WLRCursorHandle, KeyboardHandle as WLRKeyboardHandle, OutputLayout as WLROutputLayout,
-	OutputLayoutHandle as WLROutputLayoutHandle, Seat as WLRSeat, SeatHandle as WLRSeatHandle,
+	OutputLayoutHandle as WLROutputLayoutHandle, Seat as WLRSeat, SeatHandle as WLRSeatHandle, Texture,
 	XCursorManager as WLRXCursorManager, XdgV6ShellState as WLRXdgV6ShellState,
 	XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle,
 };
@@ -33,6 +34,7 @@ use input::keyboard::XkbKeySet;
 use input::seat::SeatHandler;
 use input::InputManagerHandler;
 use layout::LayoutDirection;
+use utils::graphics::texture_helper;
 
 /*
 ..####....####...##...##..#####....####....####...######..######...####...#####..
@@ -72,6 +74,20 @@ pub fn generate_default_compositor() -> WLRCompositor {
 		decoration_manager.set_default_mode(ServerDecorationMode::Server);
 	}
 
+	// ? Load wallpaper
+	// TODO: Make a method to dynamically reload a wallpaper (live reload wallpaper)
+	{
+		let mut gles2 = &mut compositor.renderer.as_mut().unwrap();
+		let comfy_kernel: &mut ComfyKernel = (&mut compositor.data).downcast_mut().unwrap();
+		let wallpaper_path_option = comfy_kernel.config.wallpaper_path.clone();
+		if let Some(wallpaper_path) = wallpaper_path_option {
+			match texture_helper::load_texture(&mut gles2, &Path::new(&wallpaper_path)) {
+				Ok(wallpaper_texture) => comfy_kernel.wallpaper_texture = Some(wallpaper_texture),
+				Err(e) => error!("{}", e),
+			}
+		}
+	}
+
 	// ? WIP: Initialize and add the seat structures to the kernel
 	{
 		let seat_handle = WLRSeat::create(&mut compositor, "seat0".into(), Box::new(SeatHandler));
@@ -107,6 +123,7 @@ pub struct ComfyKernel {
 	pub config: Config,
 	pub currently_pressed_keys: XkbKeySet,
 	pub cursor_direction: LayoutDirection,
+	pub wallpaper_texture: Option<Texture<'static>>,
 }
 
 // TODO: handle main seat features like notifying keyboard/cursor events
@@ -128,6 +145,7 @@ impl ComfyKernel {
 			config: Config::load(),
 			currently_pressed_keys: XkbKeySet::new(),
 			cursor_direction: LayoutDirection::Right,
+			wallpaper_texture: None,
 		}
 	}
 
@@ -139,10 +157,10 @@ impl ComfyKernel {
 		let mut found = false;
 		layout.outputs().iter_mut().any(|(ref mut output_handle, _)| {
 			use output_handle as output;
-				if output.name() == output_name {
-					output.schedule_frame();
-					found = true;
-				}
+			if output.name() == output_name {
+				output.schedule_frame();
+				found = true;
+			}
 			found
 		});
 	}
@@ -246,8 +264,8 @@ impl ComfyKernel {
 		let seat_handle = self.seat_handle.clone().unwrap();
 		let keyboard_handle = self.keyboard_handle.clone().unwrap();
 
-		use seat_handle as seat;
 		use keyboard_handle as keyboard;
+		use seat_handle as seat;
 		use shell_handle as shell;
 
 		shell.ping();
@@ -259,11 +277,7 @@ impl ComfyKernel {
 			toplevel.set_activated(true);
 		}
 		seat.set_keyboard(keyboard.input_device());
-		seat.keyboard_notify_enter(
-			surface,
-			&mut keyboard.keycodes(),
-			&mut keyboard.get_modifier_masks()
-		);
+		seat.keyboard_notify_enter(surface, &mut keyboard.keycodes(), &mut keyboard.get_modifier_masks());
 
 		// ? Finds the containing layout to find the containing node and set it as last activated
 		for (_output_name, output_data) in self.output_data_map.iter_mut() {
@@ -280,8 +294,8 @@ impl ComfyKernel {
 		let keyboard_handle = self.keyboard_handle.clone().unwrap();
 
 		use cursor_handle as cursor;
-		use seat_handle as seat;
 		use keyboard_handle as keyboard;
+		use seat_handle as seat;
 
 		let (x, y) = cursor.coords();
 
@@ -302,11 +316,7 @@ impl ComfyKernel {
 				}
 				seat.pointer_notify_enter(surface, surface_x, surface_y);
 				seat.set_keyboard(keyboard.input_device());
-				seat.keyboard_notify_enter(
-					surface,
-					&mut keyboard.keycodes(),
-					&mut keyboard.get_modifier_masks()
-				);
+				seat.keyboard_notify_enter(surface, &mut keyboard.keycodes(), &mut keyboard.get_modifier_masks());
 			}
 		} else {
 			seat.pointer_clear_focus();
@@ -326,8 +336,8 @@ impl ComfyKernel {
 		let cursor_handle = &self.cursor_handle.clone();
 		let seat_handle = self.seat_handle.clone().unwrap();
 
-		use seat_handle as seat;
 		use cursor_handle as cursor;
+		use seat_handle as seat;
 
 		let (x, y) = cursor.coords();
 
@@ -389,12 +399,13 @@ impl ComfyKernel {
 		let seat_handle = self.seat_handle.clone().unwrap();
 		use seat_handle as seat;
 
-		debug!("Notifying seat of keypress: time_msec: '{:?}' keycode: '{}' key_state: '{}'", key_event.time_msec(), key_event.keycode(), key_event.key_state() as u32);
-		seat.keyboard_notify_key(
+		debug!(
+			"Notifying seat of keypress: time_msec: '{:?}' keycode: '{}' key_state: '{}'",
 			key_event.time_msec(),
 			key_event.keycode(),
 			key_event.key_state() as u32
 		);
+		seat.keyboard_notify_key(key_event.time_msec(), key_event.keycode(), key_event.key_state() as u32);
 	}
 }
 
