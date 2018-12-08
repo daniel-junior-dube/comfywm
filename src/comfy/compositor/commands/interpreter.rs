@@ -45,6 +45,7 @@ impl CommandInterpreter {
 			CommandType::MoveActiveWindowRight => handle_move_active_window_right(command, comfy_kernel),
 			CommandType::ToggleActiveWindowFullscreen => handle_toggle_active_window_fullscreen(command, comfy_kernel),
 			CommandType::Exec => handle_exec(command, comfy_kernel),
+			CommandType::CloseActiveWindow => handle_close_active_window(command, comfy_kernel),
 			CommandType::Terminate => handle_terminate(command, comfy_kernel),
 			_ => error!("Command type unknown!"),
 		}
@@ -188,6 +189,27 @@ fn handle_exec(command: &CompositorCommand, _: &mut ComfyKernel) {
 			// ! Could generate panics if command fails
 			process_command.output().unwrap();
 		});
+	}
+}
+
+/*
+..####...##.......####....####...######...........####....####...######..######..##..##..######.
+.##..##..##......##..##..##......##..............##..##..##..##....##......##....##..##..##.....
+.##......##......##..##...####...####............######..##........##......##....##..##..####...
+.##..##..##......##..##......##..##..............##..##..##..##....##......##.....####...##.....
+..####...######...####....####...######..........##..##...####.....##....######....##....######.
+................................................................................................
+.##...##..######..##..##..#####....####...##...##.
+.##...##....##....###.##..##..##..##..##..##...##.
+.##.#.##....##....##.###..##..##..##..##..##.#.##.
+.#######....##....##..##..##..##..##..##..#######.
+..##.##...######..##..##..#####....####....##.##..
+..................................................
+*/
+
+fn handle_close_active_window(_: &CompositorCommand, comfy_kernel: &mut ComfyKernel) {
+	if let Some(window) = comfy_kernel.get_active_window() {
+		window.close();
 	}
 }
 

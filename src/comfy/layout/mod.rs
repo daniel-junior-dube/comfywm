@@ -335,20 +335,6 @@ impl Layout {
 		}
 	}
 
-	/// Returns a vector containing the windows indices of a windows contained in this layout.
-	/// TODO: Could put the windows in cache and update the cache only after a modification
-	pub fn get_windows(&self) -> Vec<Window> {
-		if let Some(fullscreen_window_index) = self.fullscreen_window_index {
-			let window = self.leaf_index_to_windows_map.get(&fullscreen_window_index).unwrap();
-			vec![window.clone()]
-		} else {
-			self
-				.leaf_index_to_windows_map
-				.iter()
-				.map(|(_node_index, window)| window.clone())
-				.collect()
-		}
-	}
 
 	/// Sets or unsets the fullscreen active window.
 	pub fn toggle_active_window_fullscreen(&mut self) {
@@ -357,7 +343,7 @@ impl Layout {
 				let area_of_node = self.layout_tree.get_node_area(fullscreen_window_index).unwrap();
 				if let Some(fullscreen_window) = self.leaf_index_to_windows_map.get_mut(&fullscreen_window_index) {
 					fullscreen_window.toggle_fullscreen(false);
-					fullscreen_window.resize(&area_of_node);
+					fullscreen_window.resize(area_of_node);
 					self.fullscreen_window_index = None;
 				}
 			} else {
@@ -365,10 +351,35 @@ impl Layout {
 				let area_of_root = self.layout_tree.area().unwrap();
 				if let Some(active_leaf) = self.leaf_index_to_windows_map.get_mut(&active_node_index) {
 					active_leaf.toggle_fullscreen(true);
-					active_leaf.resize(&area_of_root);
+					active_leaf.resize(area_of_root);
 					self.fullscreen_window_index = Some(active_node_index);
 				}
 			}
+		}
+	}
+
+	pub fn get_active_window(&self) -> Option<Window> {
+		let active_node_index = self.layout_tree.active_node_index;
+		if active_node_index != 0 {
+			if let Some(window) = self.leaf_index_to_windows_map.get(&active_node_index) {
+				return Some(window.clone());
+			}
+		}
+		None
+	}
+
+	/// Applies the provided function to each windows in the layout.
+	pub fn for_each_window<F>(&mut self, mut f: F) where F: FnMut(&mut Window) {
+		if let Some(fullscreen_window_index) = self.fullscreen_window_index {
+			self
+				.leaf_index_to_windows_map
+				.get_mut(&fullscreen_window_index)
+				.map(|window| f(window));
+		} else {
+			self
+				.leaf_index_to_windows_map
+				.iter_mut()
+				.for_each(|(_, window)| f(window));
 		}
 	}
 
@@ -378,15 +389,10 @@ impl Layout {
 		self.layout_tree.update_area(area)
 	}
 
-	/// Calls a rebalance of the layout tree data structure.
-	pub fn rebalance_tree(&mut self) {
-		self.layout_tree.rebalance();
-	}
-
 	/// Updates the area of the layout then rebalances the tree from the root.
 	pub fn update_area_and_rebalance(&mut self, area: Area) {
 		self.update_area(area);
-		self.rebalance_tree();
+		self.rebalance();
 	}
 
 	/// Returns the render area of the layout.
@@ -448,7 +454,11 @@ impl Layout {
 				// ? Rebalance doesn't affect fullscreen window
 				if !window.is_fullscreen {
 					let node_area = self.layout_tree.get_node_area(*index_of_resized_node).unwrap();
-					window.resize(&node_area);
+					if window.area.is_empty() {
+						window.resize(node_area);
+					} else {
+						window.start_animation(node_area);
+					}
 				}
 			}
 		}

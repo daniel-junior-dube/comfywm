@@ -78,23 +78,16 @@ impl OutputHandler {
 		sy: i32,
 	) {
 		use surface_handle as surface;
-		let render_origin = Origin::new(
-			window_area.origin.x + sx,
-			window_area.origin.y + sy
-		);
+		let render_origin = Origin::new(window_area.origin.x + sx, window_area.origin.y + sy);
 		let (width, height) = surface.current_state().size();
 		let render_size = Size::new(
 			width * renderer.output.scale() as i32,
-			height * renderer.output.scale() as i32
+			height * renderer.output.scale() as i32,
 		);
 		let render_box = Area::new(render_origin, render_size);
 		let transform = renderer.output.get_transform().invert();
-		let matrix = wlr_project_box(
-			render_box,
-			transform,
-			0.0,
-			renderer.output.transform_matrix()
-		);
+		let output_transform_matrix = renderer.output.transform_matrix();
+		let matrix = wlr_project_box(render_box, transform, 0.0, output_transform_matrix);
 		if let Some(texture) = surface.texture().as_ref() {
 			// ? Restrict the render of the surface to the window's area if top level
 			// TODO: Update set and clear scissor in a wrapper method
@@ -116,25 +109,39 @@ impl WLROutputHandler for OutputHandler {
 		use compositor_handle as compositor;
 		use output_handle as output;
 		let output_name = output.name().clone();
+		let (output_width, output_height) = output.effective_resolution();
+		let mut transform_matrix = output.transform_matrix();
 		let comfy_kernel: &mut ComfyKernel = compositor.data.downcast_mut().unwrap();
-		let renderer = compositor.renderer
+		let renderer = compositor
+			.renderer
 			.as_mut()
 			.expect("Compositor was not loaded with a renderer");
 		let mut render_context = renderer.render(output, None);
 
 		// ? Clearing the screen and get indices of windows to render
-		let mut render_color = Color::black().as_rgba_slice();
-		let mut windows = vec![];
-		if let Some(OutputData {workspace, clear_color, ..}) = comfy_kernel.output_data_map.get(&output_name) {
-			render_color = *clear_color;
-			windows = workspace.window_layout.get_windows();
+		let wallpaper_option = &comfy_kernel.wallpaper_texture;
+		if let Some(OutputData {workspace, clear_color, ..}) = comfy_kernel.output_data_map.get_mut(&output_name) {
+
+			// ? Clear the screen with an image or the render color otherwise
+			if let Some(wallpaper_texture) = wallpaper_option {
+				let (texture_width, texture_height) = wallpaper_texture.size();
+				let (scale_x, scale_y) = (
+					output_width as f32 / texture_width as f32,
+					output_height as f32 / texture_height as f32,
+				);
+				transform_matrix[0] = transform_matrix[0] * scale_x;
+				transform_matrix[4] = transform_matrix[4] * scale_y;
+				render_context.render_texture(&wallpaper_texture, transform_matrix, 0, 0, 1.0);
+			} else {
+				render_context.clear(clear_color.clone());
+			}
+
+			// ? Renders all windows
+			workspace.window_layout.for_each_window(|window_ref| {
+				window_ref.progress_animation_if_any();
+				self.render_window(window_ref, &mut render_context);
+			});
 		}
-
-		// ? Clear the screen with the render color
-		render_context.clear(render_color);
-
-		// ? Render each window
-		windows.iter().for_each(|window_ref| self.render_window(window_ref, &mut render_context));
 	}
 
 	/// WIP
@@ -153,12 +160,10 @@ impl WLROutputHandler for OutputHandler {
 		if let Some(output_data) = output_data_map.get_mut(&output.name()) {
 			let (x, y) = output.layout_space_pos();
 			let (width, height) = output.effective_resolution();
-			output_data.workspace.window_layout.update_area_and_rebalance(
-				Area::new(
-					Origin::new(x, y),
-					Size::new(width, height)
-				)
-			);
+			output_data
+				.workspace
+				.window_layout
+				.update_area_and_rebalance(Area::new(Origin::new(x, y), Size::new(width, height)));
 		}
 	}
 
@@ -191,7 +196,10 @@ impl WLROutputHandler for OutputHandler {
 		let output_name = output.name();
 		info!("Output destroyed, named: {}", output_name);
 		comfy_kernel.output_data_map.remove(&output_name);
-		debug!("Removed OutputData from data_map! Nb of total entries: {}", comfy_kernel.output_data_map.len());
+		debug!(
+			"Removed OutputData from data_map! Nb of total entries: {}",
+			comfy_kernel.output_data_map.len()
+		);
 		()
 	}
 }
@@ -220,8 +228,8 @@ impl WLROutputManagerHandler for OutputManagerHandler {
 			let cursor_handle = &mut comfy_kernel.cursor_handle;
 			let output_data_map = &mut comfy_kernel.output_data_map;
 
-			use output_layout_handle as output_layout;
 			use cursor_handle as cursor;
+			use output_layout_handle as output_layout;
 
 			output_layout.add_auto(output);
 			cursor.attach_output_layout(output_layout);
@@ -236,12 +244,7 @@ impl WLROutputManagerHandler for OutputManagerHandler {
 			let (width, height) = output.effective_resolution();
 			output_data_map.insert(
 				output.name(),
-				OutputData::new(
-					Area::new(
-						Origin::new(x, y),
-						Size::new(width, height)
-					)
-				)
+				OutputData::new(Area::new(Origin::new(x, y), Size::new(width, height))),
 			);
 		}
 		Some(result)
