@@ -123,18 +123,17 @@ impl WLROutputHandler for OutputHandler {
 		let mut render_context = renderer.render(output, None);
 
 		// ? Clearing the screen and get indices of windows to render
-		let mut render_color = Color::black().as_rgba_slice();
-		let mut windows = vec![];
-		if let Some(OutputData {workspace, clear_color, ..}) = comfy_kernel.output_data_map.get(&output_name) {
-			render_color = *clear_color;
-			windows = workspace.window_layout.get_windows();
+		if let Some(OutputData {workspace, clear_color, ..}) = comfy_kernel.output_data_map.get_mut(&output_name) {
+
+			// ? Clear the screen with the render color
+			render_context.clear(clear_color.clone());
+
+			// ? Renders all windows
+			workspace.window_layout.for_each_window(|window_ref| {
+				window_ref.progress_animation_if_any();
+				self.render_window(window_ref, &mut render_context);
+			});
 		}
-
-		// ? Clear the screen with the render color
-		render_context.clear(render_color);
-
-		// ? Render each window
-		windows.iter().for_each(|window_ref| self.render_window(window_ref, &mut render_context));
 	}
 
 	/// WIP
