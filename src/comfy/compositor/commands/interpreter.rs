@@ -186,8 +186,10 @@ fn handle_exec(command: &CompositorCommand, _: &mut ComfyKernel) {
 				process_command.args(&command_clone.args[1..nb_of_arguments - 1]);
 			}
 
-			// ! Could generate panics if command fails
-			process_command.output().unwrap();
+			match process_command.output() {
+				Ok(output) => info!("The command {} returned {}", command_clone.args.join(" "), output.status),
+				Err(e) => error!("The command {} failed with: {}", command_clone.args.join(" "), e),
+			};
 		});
 	}
 }
