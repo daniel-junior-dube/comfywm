@@ -43,7 +43,8 @@ impl Animation {
 	}
 }
 
-/// Easing animation module.
+/// Easing animation module. Mainly converted from the c++ implementation of http://robertpenner.com/easing/.
+/// These functions where originally created by Robert Penner.
 pub mod ease {
 	// no easing, no acceleration
 	pub fn linear(t: f32) -> f32 {
