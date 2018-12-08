@@ -332,14 +332,22 @@ impl Layout {
 		}
 	}
 
-	/// Returns a vector containing the windows indices of a windows contained in this layout.
-	/// TODO: Could put the windows in cache and update the cache only after a modification
-	pub fn get_windows(&self) -> Vec<Window> {
+	pub fn get_active_window(&self) -> Option<Window> {
+		let active_node_index = self.layout_tree.active_node_index;
+		if active_node_index != 0 {
+			if let Some(window) = self.leaf_index_to_windows_map.get(&active_node_index) {
+				return Some(window.clone());
+			}
+		}
+		None
+	}
+
+	/// Applies the provided function to each windows in the layout.
+	pub fn for_each_window<F>(&mut self, mut f: F) where F: FnMut(&mut Window) {
 		self
 			.leaf_index_to_windows_map
-			.iter()
-			.map(|(_node_index, window)| window.clone())
-			.collect()
+			.iter_mut()
+			.for_each(|(_, window)| f(window))
 	}
 
 	/// Updates the render area of the layout.
@@ -348,15 +356,10 @@ impl Layout {
 		self.layout_tree.update_area(area)
 	}
 
-	/// Calls a rebalance of the layout tree data structure.
-	pub fn rebalance_tree(&mut self) {
-		self.layout_tree.rebalance();
-	}
-
 	/// Updates the area of the layout then rebalances the tree from the root.
 	pub fn update_area_and_rebalance(&mut self, area: Area) {
 		self.update_area(area);
-		self.rebalance_tree();
+		self.rebalance();
 	}
 
 	/// Returns the render area of the layout.
@@ -416,7 +419,11 @@ impl Layout {
 		for index_of_resized_node in indices_of_resized_nodes.iter() {
 			if let Some(window) = self.leaf_index_to_windows_map.get_mut(index_of_resized_node) {
 				let node_area = self.layout_tree.get_node_area(*index_of_resized_node).unwrap();
-				window.resize(&node_area);
+				if window.area.is_empty() {
+					window.resize(node_area);
+				} else {
+					window.start_animation(node_area);
+				}
 			}
 		}
 	}

@@ -119,34 +119,29 @@ impl WLROutputHandler for OutputHandler {
 		let mut render_context = renderer.render(output, None);
 
 		// ? Clearing the screen and get indices of windows to render
-		let mut render_color = Color::black().as_rgba_slice();
-		let mut windows = vec![];
-		if let Some(OutputData {
-			workspace, clear_color, ..
-		}) = comfy_kernel.output_data_map.get(&output_name)
-		{
-			render_color = *clear_color;
-			windows = workspace.window_layout.get_windows();
-		}
+		let wallpaper_option = &comfy_kernel.wallpaper_texture;
+		if let Some(OutputData {workspace, clear_color, ..}) = comfy_kernel.output_data_map.get_mut(&output_name) {
 
-		// ? Clear the screen with an image or the render color otherwise
-		if let Some(wallpaper_texture) = &comfy_kernel.wallpaper_texture {
-			let (texture_width, texture_height) = wallpaper_texture.size();
-			let (scale_x, scale_y) = (
-				output_width as f32 / texture_width as f32,
-				output_height as f32 / texture_height as f32,
-			);
-			transform_matrix[0] = transform_matrix[0] * scale_x;
-			transform_matrix[4] = transform_matrix[4] * scale_y;
-			render_context.render_texture(&wallpaper_texture, transform_matrix, 0, 0, 1.0);
-		} else {
-			render_context.clear(render_color);
-		}
+			// ? Clear the screen with an image or the render color otherwise
+			if let Some(wallpaper_texture) = wallpaper_option {
+				let (texture_width, texture_height) = wallpaper_texture.size();
+				let (scale_x, scale_y) = (
+					output_width as f32 / texture_width as f32,
+					output_height as f32 / texture_height as f32,
+				);
+				transform_matrix[0] = transform_matrix[0] * scale_x;
+				transform_matrix[4] = transform_matrix[4] * scale_y;
+				render_context.render_texture(&wallpaper_texture, transform_matrix, 0, 0, 1.0);
+			} else {
+				render_context.clear(clear_color.clone());
+			}
 
-		// ? Render each window
-		windows
-			.iter()
-			.for_each(|window_ref| self.render_window(window_ref, &mut render_context));
+			// ? Renders all windows
+			workspace.window_layout.for_each_window(|window_ref| {
+				window_ref.progress_animation_if_any();
+				self.render_window(window_ref, &mut render_context);
+			});
+		}
 	}
 
 	/// WIP

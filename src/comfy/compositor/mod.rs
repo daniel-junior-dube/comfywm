@@ -187,6 +187,13 @@ impl ComfyKernel {
 		self.cursor_direction = direction;
 	}
 
+	pub fn get_active_window(&mut self) -> Option<Window> {
+		if let Some(OutputData { workspace, .. }) = self.output_data_map.get_mut(&self.active_output_name) {
+			return workspace.window_layout.get_active_window();
+		}
+		None
+	}
+
 	pub fn move_active_window(&mut self, direction: LayoutDirection) {
 		if let Some(OutputData { workspace, .. }) = self.output_data_map.get_mut(&self.active_output_name) {
 			workspace.window_layout.move_active_window(&direction);
