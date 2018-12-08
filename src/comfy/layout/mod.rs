@@ -343,7 +343,7 @@ impl Layout {
 				let area_of_node = self.layout_tree.get_node_area(fullscreen_window_index).unwrap();
 				if let Some(fullscreen_window) = self.leaf_index_to_windows_map.get_mut(&fullscreen_window_index) {
 					fullscreen_window.toggle_fullscreen(false);
-					fullscreen_window.resize(area_of_node);
+					fullscreen_window.start_animation(area_of_node);
 					self.fullscreen_window_index = None;
 				}
 			} else {
@@ -351,7 +351,7 @@ impl Layout {
 				let area_of_root = self.layout_tree.area().unwrap();
 				if let Some(active_leaf) = self.leaf_index_to_windows_map.get_mut(&active_node_index) {
 					active_leaf.toggle_fullscreen(true);
-					active_leaf.resize(area_of_root);
+					active_leaf.start_animation(area_of_root);
 					self.fullscreen_window_index = Some(active_node_index);
 				}
 			}
