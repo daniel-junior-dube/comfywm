@@ -49,6 +49,16 @@ impl Window {
 			}).unwrap();
 	}
 
+	pub fn close(&self) {
+		self
+			.shell_handle
+			.run(|shell| {
+				if let Some(&mut WLRXdgV6ShellState::TopLevel(ref mut toplevel)) = shell.state() {
+					toplevel.close();
+				}
+			}).unwrap();
+	}
+
 	pub fn for_each_surface(&self, f: &mut FnMut(WLRSurfaceHandle, i32, i32)) {
 		self.shell_handle.run(|shell| shell.for_each_surface(f)).unwrap();
 	}
