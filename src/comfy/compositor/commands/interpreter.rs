@@ -43,6 +43,7 @@ impl CommandInterpreter {
 			CommandType::MoveActiveWindowDown => handle_move_active_window_down(command, comfy_kernel),
 			CommandType::MoveActiveWindowLeft => handle_move_active_window_left(command, comfy_kernel),
 			CommandType::MoveActiveWindowRight => handle_move_active_window_right(command, comfy_kernel),
+			CommandType::ToggleActiveWindowFullscreen => handle_toggle_active_window_fullscreen(command, comfy_kernel),
 			CommandType::Exec => handle_exec(command, comfy_kernel),
 			CommandType::Terminate => handle_terminate(command, comfy_kernel),
 			_ => error!("Command type unknown!"),
@@ -141,6 +142,25 @@ fn handle_move_active_window_left(_: &CompositorCommand, comfy_kernel: &mut Comf
 
 fn handle_move_active_window_right(_: &CompositorCommand, comfy_kernel: &mut ComfyKernel) {
 	comfy_kernel.move_active_window(LayoutDirection::Right);
+}
+
+/*
+.######...####....####....####...##......######.
+...##....##..##..##......##......##......##.....
+...##....##..##..##.###..##.###..##......####...
+...##....##..##..##..##..##..##..##......##.....
+...##.....####....####....####...######..######.
+................................................
+.######..##..##..##......##.......####....####...#####...######..######..##..##.
+.##......##..##..##......##......##......##..##..##..##..##......##......###.##.
+.####....##..##..##......##.......####...##......#####...####....####....##.###.
+.##......##..##..##......##..........##..##..##..##..##..##......##......##..##.
+.##.......####...######..######...####....####...##..##..######..######..##..##.
+................................................................................
+*/
+
+fn handle_toggle_active_window_fullscreen(_: &CompositorCommand, comfy_kernel: &mut ComfyKernel) {
+	comfy_kernel.toggle_active_window_fullscreen();
 }
 
 /*

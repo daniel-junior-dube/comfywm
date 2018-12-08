@@ -16,16 +16,28 @@ use wlroots::{
 pub struct Window {
 	pub shell_handle: WLRXdgV6ShellSurfaceHandle,
 	pub area: Area,
+	pub is_fullscreen: bool
 }
 
 impl Window {
 	pub fn new(shell_handle: WLRXdgV6ShellSurfaceHandle, area: Area) -> Self {
-		Window { shell_handle, area }
+		Window { shell_handle, area, is_fullscreen: false }
 	}
 
 	pub fn new_empty_area(shell_handle: WLRXdgV6ShellSurfaceHandle) -> Self {
 		let area = Area::new(Origin::new(0, 0), Size::new(0, 0));
 		Window::new(shell_handle, area)
+	}
+
+	pub fn toggle_fullscreen(&mut self, is_fullscreen: bool) {
+		self.is_fullscreen = is_fullscreen;
+		self
+				.shell_handle
+				.run(|shell| {
+					if let Some(&mut WLRXdgV6ShellState::TopLevel(ref mut toplevel)) = shell.state() {
+						toplevel.set_fullscreen(is_fullscreen);
+					}
+				}).unwrap();
 	}
 
 	pub fn set_maximized(&mut self) {

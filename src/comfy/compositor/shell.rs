@@ -43,7 +43,6 @@ impl WLRXdgV6ShellManagerHandler for XdgV6ShellManagerHandler {
 		if shell_handle_helper::is_top_level(&shell_handle) {
 			use compositor_handle as compositor;
 			let comfy_kernel: &mut ComfyKernel = compositor.into();
-			comfy_kernel.apply_keyboard_focus(&shell_handle);
 			comfy_kernel.add_window_to_active_workspace(shell_handle);
 		}
 		(Some(Box::new(XdgV6ShellHandler)), Some(Box::new(SurfaceHandler)))

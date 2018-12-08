@@ -106,7 +106,7 @@ pub struct ComfyKernel {
 	pub seat_handle: Option<WLRSeatHandle>,
 	pub config: Config,
 	pub currently_pressed_keys: XkbKeySet,
-	pub cursor_direction: LayoutDirection,
+	cursor_direction: LayoutDirection,
 }
 
 // TODO: handle main seat features like notifying keyboard/cursor events
@@ -147,12 +147,24 @@ impl ComfyKernel {
 		});
 	}
 
+	/// Sets or unsets the fullscreen active window.
+	pub fn toggle_active_window_fullscreen(&mut self) {
+		if let Some(OutputData { workspace, .. }) = self.output_data_map.get_mut(&self.active_output_name) {
+			workspace
+				.window_layout
+				.toggle_active_window_fullscreen();
+		}
+	}
+
+	/// Move the 'cursor' in the layout in a given direction.
 	pub fn move_cursor_in_active_output(&mut self, direction: LayoutDirection) {
 		let mut shell_handle_option = None;
 		if let Some(OutputData { workspace, .. }) = self.output_data_map.get_mut(&self.active_output_name) {
-			shell_handle_option = workspace
-				.window_layout
-				.get_shell_handle_relative_to_active_node(&direction);
+			if !workspace.window_layout.has_fullscreen_window() {
+				shell_handle_option = workspace
+					.window_layout
+					.get_shell_handle_relative_to_active_node(&direction);
+			}
 		} else {
 			error!(
 				"Failed to get output data for active output: {}",
@@ -161,14 +173,16 @@ impl ComfyKernel {
 		}
 		if let Some(shell_handle) = shell_handle_option {
 			self.apply_keyboard_focus(&shell_handle);
+			self.schedule_frame_for_output(&self.active_output_name);
 		}
-		self.schedule_frame_for_output(&self.active_output_name);
 	}
 
+	/// Sets the direction of the 'cursor' of the layout.
 	pub fn set_cursor_direction(&mut self, direction: LayoutDirection) {
 		self.cursor_direction = direction;
 	}
 
+	/// Moves the active window in the active layout in a given direction.
 	pub fn move_active_window(&mut self, direction: LayoutDirection) {
 		if let Some(OutputData { workspace, .. }) = self.output_data_map.get_mut(&self.active_output_name) {
 			workspace.window_layout.move_active_window(&direction);
@@ -184,14 +198,18 @@ impl ComfyKernel {
 	/// Add the provided shell handle as a new window inside the active workspace
 	pub fn add_window_to_active_workspace(&mut self, shell_handle: WLRXdgV6ShellSurfaceHandle) {
 		let current_cursor_direction = self.cursor_direction.clone();
+		let mut active_shell_option = None;
 		if let Some(OutputData { workspace, .. }) = self.output_data_map.get_mut(&self.active_output_name) {
 			// TODO: Handle manual direction change for insertion
-			match workspace
+			active_shell_option = match workspace
 				.window_layout
 				.add_shell_handle(shell_handle, &current_cursor_direction, true, true)
 			{
-				Err(e) => error!("{}", e),
-				Ok(_) => {}
+				Err(e) => {
+					error!("{}", e);
+					None
+				},
+				Ok(_) => workspace.window_layout.get_active_shell_handle()
 			}
 		} else {
 			error!(
@@ -200,7 +218,10 @@ impl ComfyKernel {
 			);
 		}
 
-		self.schedule_frame_for_output(&self.active_output_name);
+		if let Some(active_shell) = active_shell_option {
+			self.apply_keyboard_focus(&active_shell);
+			self.schedule_frame_for_output(&self.active_output_name);
+		}
 	}
 
 	/// Finds and removes the window bound to the provided shell handle from the containing output.
