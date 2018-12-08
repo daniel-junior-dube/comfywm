@@ -332,6 +332,16 @@ impl Layout {
 		}
 	}
 
+	pub fn get_active_window(&self) -> Option<Window> {
+		let active_node_index = self.layout_tree.active_node_index;
+		if active_node_index != 0 {
+			if let Some(window) = self.leaf_index_to_windows_map.get(&active_node_index) {
+				return Some(window.clone());
+			}
+		}
+		None
+	}
+
 	/// Applies the provided function to each windows in the layout.
 	pub fn for_each_window<F>(&mut self, mut f: F) where F: FnMut(&mut Window) {
 		self
