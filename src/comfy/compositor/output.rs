@@ -1,17 +1,14 @@
-use wlroots::utils::current_time;
 use wlroots::{
-	project_box as wlr_project_box, Area, CompositorHandle as WLRCompositorHandle, Origin,
+	Area, CompositorHandle as WLRCompositorHandle, Origin,
 	OutputBuilder as WLROutputBuilder, OutputBuilderResult as WLROutputBuilderResult, OutputHandle as WLROutputHandle,
 	OutputHandler as WLROutputHandler,
 	OutputLayoutHandler as WLROutputLayoutHandler, /* , OutputDestruction as WLROutputDestruction */
-	OutputManagerHandler as WLROutputManagerHandler, Renderer, Size, SurfaceHandle as WLRSurfaceHandle,
+	OutputManagerHandler as WLROutputManagerHandler, Size,
 };
 
 use common::colors::Color;
-use compositor::window::Window;
 use compositor::workspace::Workspace;
 use compositor::ComfyKernel;
-use utils::handle_helper;
 
 /*
 ..####...##..##..######..#####...##..##..######..#####....####...######...####..
@@ -58,50 +55,6 @@ impl WLROutputLayoutHandler for OutputLayoutHandler {}
 
 // ? Handles the actions and events of a specific output
 pub struct OutputHandler;
-impl OutputHandler {
-	/// Renders the provided window data using the provided renderer.
-	fn render_window(&self, window: &Window, renderer: &mut Renderer) {
-		let window_area = window.area.clone();
-		window.for_each_surface(&mut |surface_handle: WLRSurfaceHandle, sx, sy| {
-			self.render_surface(renderer, &surface_handle, &window_area, sx, sy);
-		});
-	}
-
-	/// Renders the provided surface using the provided renderer.
-	#[wlroots_dehandle(surface)]
-	fn render_surface(
-		&self,
-		renderer: &mut Renderer,
-		surface_handle: &WLRSurfaceHandle,
-		window_area: &Area,
-		sx: i32,
-		sy: i32,
-	) {
-		use surface_handle as surface;
-		let render_origin = Origin::new(window_area.origin.x + sx, window_area.origin.y + sy);
-		let (width, height) = surface.current_state().size();
-		let render_size = Size::new(
-			width * renderer.output.scale() as i32,
-			height * renderer.output.scale() as i32,
-		);
-		let render_box = Area::new(render_origin, render_size);
-		let transform = renderer.output.get_transform().invert();
-		let output_transform_matrix = renderer.output.transform_matrix();
-		let matrix = wlr_project_box(render_box, transform, 0.0, output_transform_matrix);
-		if let Some(texture) = surface.texture().as_ref() {
-			// ? Restrict the render of the surface to the window's area if top level
-			// TODO: Update set and clear scissor in a wrapper method
-			if handle_helper::surface_helper::is_top_level(surface) {
-				renderer.render_scissor(*window_area);
-				renderer.render_texture_with_matrix(texture, matrix);
-				renderer.render_scissor(None);
-			} else {
-				renderer.render_texture_with_matrix(texture, matrix);
-			}
-		}
-		surface.send_frame_done(current_time());
-	}
-}
 impl WLROutputHandler for OutputHandler {
 	/// Called every time the output frame is updated.
 	#[wlroots_dehandle(compositor, output)]
@@ -137,9 +90,20 @@ impl WLROutputHandler for OutputHandler {
 			}
 
 			// ? Renders all windows
-			workspace.window_layout.for_each_window(|window_ref| {
-				window_ref.progress_animation_if_any();
-				self.render_window(window_ref, &mut render_context);
+			if !workspace.window_layout.should_only_render_active_window() {
+				workspace.window_layout.for_each_non_active_window(|window_ref| {
+					if window_ref.has_active_animation() {
+						window_ref.progress_animation();
+					}
+					window_ref.render_all_surface(&mut render_context);
+				});
+			}
+
+			workspace.window_layout.apply_to_active_window(|window_ref| {
+				if window_ref.has_active_animation() {
+					window_ref.progress_animation();
+				}
+				window_ref.render_all_surface(&mut render_context);
 			});
 		}
 	}
