@@ -335,6 +335,16 @@ impl Layout {
 		}
 	}
 
+	/// Returns `true` if the layout has a fullscreen window which is not currently doing an animation.
+	pub fn should_only_render_active_window(&self) -> bool {
+		if let Some(fullscreen_window_index) = self.fullscreen_window_index {
+			let fullscreen_window = self.leaf_index_to_windows_map.get(&fullscreen_window_index).unwrap();
+			if !fullscreen_window.has_active_animation() {
+				return true;
+			}
+		}
+		false
+	}
 
 	/// Sets or unsets the fullscreen active window.
 	pub fn toggle_active_window_fullscreen(&mut self) {
@@ -343,7 +353,7 @@ impl Layout {
 				let area_of_node = self.layout_tree.get_node_area(fullscreen_window_index).unwrap();
 				if let Some(fullscreen_window) = self.leaf_index_to_windows_map.get_mut(&fullscreen_window_index) {
 					fullscreen_window.toggle_fullscreen(false);
-					fullscreen_window.resize(area_of_node);
+					fullscreen_window.start_animation(area_of_node);
 					self.fullscreen_window_index = None;
 				}
 			} else {
@@ -351,7 +361,7 @@ impl Layout {
 				let area_of_root = self.layout_tree.area().unwrap();
 				if let Some(active_leaf) = self.leaf_index_to_windows_map.get_mut(&active_node_index) {
 					active_leaf.toggle_fullscreen(true);
-					active_leaf.resize(area_of_root);
+					active_leaf.start_animation(area_of_root);
 					self.fullscreen_window_index = Some(active_node_index);
 				}
 			}
@@ -368,19 +378,33 @@ impl Layout {
 		None
 	}
 
+	pub fn apply_to_active_window<F>(&mut self, mut f: F) where F: FnMut(&mut Window) {
+		if self.layout_tree.active_node_is_root() {
+			return;
+		}
+		self
+			.leaf_index_to_windows_map
+			.get_mut(&self.layout_tree.active_node_index)
+			.map(|window| f(window));
+	}
+
 	/// Applies the provided function to each windows in the layout.
 	pub fn for_each_window<F>(&mut self, mut f: F) where F: FnMut(&mut Window) {
-		if let Some(fullscreen_window_index) = self.fullscreen_window_index {
-			self
-				.leaf_index_to_windows_map
-				.get_mut(&fullscreen_window_index)
-				.map(|window| f(window));
-		} else {
-			self
-				.leaf_index_to_windows_map
-				.iter_mut()
-				.for_each(|(_, window)| f(window));
-		}
+		self
+			.leaf_index_to_windows_map
+			.iter_mut()
+			.for_each(|(_, window)| f(window));
+	}
+
+	/// Applies the provided function to each windows in the layout.
+	pub fn for_each_non_active_window<F>(&mut self, mut f: F) where F: FnMut(&mut Window) {
+		let active_node_index = self.layout_tree.active_node_index;
+		self
+			.leaf_index_to_windows_map
+			.iter_mut()
+			.for_each(|(&leaf_node_index, window)| if leaf_node_index != active_node_index {
+				f(window);
+			});
 	}
 
 	/// Updates the render area of the layout.
