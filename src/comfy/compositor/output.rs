@@ -95,7 +95,7 @@ impl WLROutputHandler for OutputHandler {
 					if window_ref.has_active_animation() {
 						window_ref.progress_animation();
 					}
-					window_ref.render_all_surface(&mut render_context);
+					window_ref.render_top_level_surface(&mut render_context);
 				});
 			}
 

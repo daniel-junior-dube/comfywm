@@ -167,4 +167,11 @@ impl Window {
 	pub fn for_each_surface(&self, f: &mut FnMut(WLRSurfaceHandle, i32, i32)) {
 		self.shell_handle.run(|shell| shell.for_each_surface(f)).unwrap();
 	}
+
+	/// Convert the given output-related coordinates into window-related coordinates.
+	pub fn convert_output_coord_to_window(&self, x: f64, y: f64) -> (f64, f64) {
+		let local_x = x - (self.area.origin.x as f64);
+		let local_y = y - (self.area.origin.y as f64);
+		(local_x, local_y)
+	}
 }

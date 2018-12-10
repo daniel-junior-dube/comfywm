@@ -5,7 +5,7 @@ use wlroots::key_events::KeyEvent as WLRKeyEvent;
 use wlroots::pointer_events::AbsoluteMotionEvent;
 use wlroots::{
 	Capability, Compositor as WLRCompositor, CompositorBuilder as WLRCompositorBuilder, Cursor as WLRCursor,
-	CursorHandle as WLRCursorHandle, KeyboardHandle as WLRKeyboardHandle, OutputLayout as WLROutputLayout,
+	SurfaceHandle as WLRSurfaceHandle, CursorHandle as WLRCursorHandle, KeyboardHandle as WLRKeyboardHandle, OutputLayout as WLROutputLayout,
 	OutputLayoutHandle as WLROutputLayoutHandle, Seat as WLRSeat, SeatHandle as WLRSeatHandle, Texture,
 	XCursorManager as WLRXCursorManager, XdgV6ShellState as WLRXdgV6ShellState,
 	XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle,
@@ -308,7 +308,48 @@ impl ComfyKernel {
 		}
 	}
 
-	#[wlroots_dehandle(cursor, keyboard, seat, shell, surface)]
+	/// Return a tuple for a window which contains a subsurface that intersects with the provided absolute coordinates.
+	/// Checks the active window first, since there is more chances that it intersects.
+	/// This is mainly used to make sure we send pointer event relative to the surface under the pointer.
+	// TODO: Maybe we should separate this into 2 separate functions. One that checks the active window and the other, the get_window_at...
+	pub fn get_window_and_subsurface_at(&mut self, x: f64, y: f64) -> Option<(Window, WLRSurfaceHandle, f64, f64)> {
+		let mut subsurface_intersection_at = None;
+		if let Some(window) = self.get_active_window() {
+			let (sx, sy) = window.convert_output_coord_to_window(x, y);
+			if let Some((surface_handle, sx, sy)) = self.get_window_subsurface_at(&window, sx, sy) {
+				subsurface_intersection_at = Some((window, surface_handle, sx, sy));
+			}
+		}
+		if subsurface_intersection_at.is_none() {
+			if let Some(window) = self.get_window_at(x, y) {
+				let (sx, sy) = window.convert_output_coord_to_window(x, y);
+				if let Some((surface_handle, sx, sy)) = self.get_window_subsurface_at(&window, sx, sy) {
+					subsurface_intersection_at = Some((window, surface_handle, sx, sy));
+				}
+			}
+		}
+		subsurface_intersection_at
+	}
+
+	/// Returns a subsurface (and its offset) of the window that intersects the given the coordinates relative to the window's origin.
+	#[wlroots_dehandle(shell)]
+	fn get_window_subsurface_at(&mut self, window: &Window, surface_x: f64, surface_y: f64) -> Option<(WLRSurfaceHandle, f64, f64)> {
+		let mut subsurface_x = 0.0;
+		let mut subsurface_y = 0.0;
+		let mut surface_handle_option = None;
+		{
+			let shell_handle = &window.shell_handle;
+			use shell_handle as shell;
+			surface_handle_option = shell.surface_at(surface_x, surface_y, &mut subsurface_x, &mut subsurface_y);
+		}
+		if let Some(surface_handle) = surface_handle_option {
+			Some((surface_handle, subsurface_x, subsurface_y))
+		} else {
+			None
+		}
+	}
+
+	#[wlroots_dehandle(cursor, keyboard, seat, shell, subsurface)]
 	pub fn apply_focus_under_cursor(&mut self) {
 		let cursor_handle = &self.cursor_handle.clone();
 		let seat_handle = &self.seat_handle.clone().unwrap();
@@ -320,24 +361,17 @@ impl ComfyKernel {
 
 		let (x, y) = cursor.coords();
 
-		if let Some(window) = self.get_window_at_coordinates(x, y) {
-			let shell_handle = window.shell_handle;
-			let origin = window.area.origin;
-			let surface_x = x - (origin.x as f64);
-			let surface_y = y - (origin.y as f64);
-			use shell_handle as shell;
-
-			shell.ping();
-			let surface_handle = shell.surface();
-			use surface_handle as surface;
-
-			if !seat.pointer_surface_has_focus(surface) {
-				if let Some(&mut WLRXdgV6ShellState::TopLevel(ref mut toplevel)) = shell.state() {
+		if let Some((window, subsurface_handle, sx, sy)) = self.get_window_and_subsurface_at(x, y) {
+			use subsurface_handle as subsurface;
+			if !seat.pointer_surface_has_focus(subsurface) {
+				let shell_handle = &window.shell_handle;
+				use shell_handle as shell;
+				if let Some(WLRXdgV6ShellState::TopLevel(ref mut toplevel)) = shell.state() {
 					toplevel.set_activated(true);
 				}
-				seat.pointer_notify_enter(surface, surface_x, surface_y);
+				seat.pointer_notify_enter(subsurface, sx, sy);
 				seat.set_keyboard(keyboard.input_device());
-				seat.keyboard_notify_enter(surface, &mut keyboard.keycodes(), &mut keyboard.get_modifier_masks());
+				seat.keyboard_notify_enter(subsurface, &mut keyboard.keycodes(), &mut keyboard.get_modifier_masks());
 			}
 		} else {
 			seat.pointer_clear_focus();
@@ -362,11 +396,8 @@ impl ComfyKernel {
 
 		let (x, y) = cursor.coords();
 
-		if let Some(window) = self.get_window_at_coordinates(x, y) {
-			let origin = window.area.origin;
-			let surface_x = x - (origin.x as f64);
-			let surface_y = y - (origin.y as f64);
-			seat.pointer_notify_motion(time, surface_x, surface_y);
+		if let Some((_window, _subsurface_handle, sx, sy)) = self.get_window_and_subsurface_at(x, y) {
+			seat.pointer_notify_motion(time, sx, sy);
 		}
 	}
 
@@ -385,15 +416,15 @@ impl ComfyKernel {
 		seat.pointer_notify_axis(time, orientation, value, value_discrete, source);
 	}
 
-	fn get_window_at_coordinates(&mut self, x: f64, y: f64) -> Option<Window> {
-		let mut window = None;
+	fn get_window_at(&mut self, x: f64, y: f64) -> Option<Window> {
+		let mut result = None;
 		for (_, output_data) in self.output_data_map.iter_mut() {
-			window = output_data.workspace.window_layout.find_window_at(x, y);
-			if window.is_some() {
+			result = output_data.workspace.window_layout.find_window_at(x, y);
+			if result.is_some() {
 				break;
 			}
 		}
-		window
+		result
 	}
 
 	#[wlroots_dehandle(cursor)]
