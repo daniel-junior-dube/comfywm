@@ -37,12 +37,6 @@ impl Window {
 		}
 	}
 
-	/// Creates a window with an empty area.
-	pub fn new_empty_area(shell_handle: WLRXdgV6ShellSurfaceHandle, border_size: u8) -> Self {
-		let area = Area::new(Origin::new(0, 0), Size::new(0, 0));
-		Window::new(shell_handle, area, border_size)
-	}
-
 	pub fn render_top_level_surface(
 		&self,
 		renderer: &mut WLRRenderer,

@@ -489,11 +489,7 @@ impl Layout {
 				// ? Rebalance doesn't affect fullscreen window
 				if !window.is_fullscreen {
 					let node_area = self.layout_tree.get_node_area(*index_of_resized_node).unwrap();
-					if window.area.is_empty() {
-						window.resize(node_area);
-					} else {
-						window.start_animation(node_area);
-					}
+					window.start_animation(node_area);
 				}
 			}
 		}
@@ -518,7 +514,8 @@ impl Layout {
 		rebalance_after_insertion: bool,
 	) -> Result<(), String> {
 		// ? Add the top level shell as a new window
-		let mut window = Window::new_empty_area(shell_handle, border_size);
+		let default_area = self.layout_tree.get_default_node_area(direction);
+		let mut window = Window::new(shell_handle, default_area, border_size);
 		window.set_maximized();
 		let index_of_new_node = self
 			.layout_tree
@@ -669,6 +666,29 @@ impl RegionBasedKAryLayoutTree {
 			nodes: vec![Some(root_node)],
 			active_node_index: INDEX_OF_ROOT,
 		}
+	}
+
+	///
+	pub fn get_default_node_area(&self, direction: &LayoutDirection) -> Area {
+		let active_node_area = self.get_node_area(self.active_node_index).unwrap();
+		let mut area = active_node_area.clone();
+		match direction {
+			LayoutDirection::Up => {
+				area.size.height = 0;
+			},
+			LayoutDirection::Down => {
+				area.size.height = 0;
+				area.origin.y += active_node_area.size.height;
+			},
+			LayoutDirection::Left => {
+				area.size.width = 0;
+			},
+			LayoutDirection::Right => {
+				area.size.width = 0;
+				area.origin.x += active_node_area.size.width;
+			},
+		};
+		area
 	}
 
 	/// Returns `true` if the active node is the root node.
