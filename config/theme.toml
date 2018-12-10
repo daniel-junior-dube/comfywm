@@ -1,2 +1,10 @@
 # This config uses TOML.
 # Please refer to their documentation for more details : https://github.com/toml-lang/toml#user-content-comment
+
+border_size = 7
+active_color = "#F59311"
+inactive_color = "#29312E"
+
+# This is not the color of the mouse cursor, rather it is the one displayed on the window borders.
+cursor_indicator_color = "#E6342A"
+wallpaper_path = "/usr/share/comfywm/wallpaper.jpg"
