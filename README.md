@@ -44,7 +44,7 @@ x11-icccm (optional, for improved Xwayland introspection)
 xcb-xkb (optional, for improved keyboard handling on the X11 backend)
 ```
 
-### Installing developpement environement
+### Installing developpement environment
 
 commands
 A step by step series of examples that tell you how to get a development env running
@@ -64,16 +64,13 @@ A step by step series of examples that tell you how to get a development env run
 ...
 ```
 
-**Using Cargo:**
+**Using Make:**
 ```bash
 # Pull and update the git submodules
 git submodule update --init --recursive
 
 # Build the application
 cargo build
-
-# If the build was successfull, call the install command
-cargo install
 ```
 
 ### Installation
@@ -81,8 +78,11 @@ cargo install
 A step by step series of examples that tell you how to install Comfywm on your system
 
 ```bash
-# Build the application (this requires caro and make)
+# Build the application (this requires cargo and make)
 make
+
+# If the build was successfull, call the install command
+# (Note: To install as a X11 session, add the flag `x11=1`)
 sudo make install
 ```
 
@@ -102,7 +102,7 @@ cargo test
 cargo test <name of the test>
 ```
 
-### Built With
+## Built With
 
 * [Rust](https://www.rust-lang.org) - System programming language
 * [wlroots](https://github.com/swaywm/wlroots) - A modular Wayland compositor library.
@@ -112,9 +112,11 @@ cargo test <name of the test>
 
 Please read [contributing](CONTRIBUTING.md) for details on our code of conduct, and the process for submitting pull requests to us.
 
+<!--
 ## Versioning
 
 We use [SemVer](http://semver.org/) for versioning.
+-->
 
 ## Authors
 
@@ -129,6 +131,4 @@ This project is licensed under the MIT License - see the [license](LICENSE.md) f
 
 ## Acknowledgments
 
-* Hat tip to anyone whose code was used
-* Inspiration
-* etc
+* Special thanks to Drew Devault for wlroots and Preston Carpenter for wlroots-rs and for it's support during the development of this project!
