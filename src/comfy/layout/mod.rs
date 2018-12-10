@@ -493,6 +493,13 @@ impl Layout {
 				}
 			}
 		}
+
+		if let Some(fullscreen_window_index) = self.fullscreen_window_index {
+			if let Some(fullscreen_window) = self.leaf_index_to_windows_map.get_mut(&fullscreen_window_index) {
+				let area_of_root = self.layout_tree.area().unwrap();
+				fullscreen_window.resize(area_of_root);
+			}
+		}
 	}
 
 	/// Adds a window in the layout given it's associated xdg shell surface handle.
