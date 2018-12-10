@@ -350,55 +350,54 @@ impl ComfyKernel {
 		}
 	}
 
-	#[wlroots_dehandle(cursor, keyboard, seat, shell, subsurface)]
-	pub fn apply_focus_under_cursor(&mut self) {
-		let cursor_handle = &self.cursor_handle.clone();
-		let seat_handle = &self.seat_handle.clone().unwrap();
-		let keyboard_handle = self.keyboard_handle.clone().unwrap();
-
+	/// Returns the coordinates of the cursor location relative to the currently active output.
+	#[wlroots_dehandle(cursor)]
+	fn get_cursor_coordinates(&self) -> (f64, f64) {
+		let cursor_handle = &self.cursor_handle;
 		use cursor_handle as cursor;
-		use keyboard_handle as keyboard;
-		use seat_handle as seat;
+		cursor.coords()
+	}
 
-		let (x, y) = cursor.coords();
-
-		if let Some((window, subsurface_handle, sx, sy)) = self.get_window_and_subsurface_at(x, y) {
-			use subsurface_handle as subsurface;
-			if !seat.pointer_surface_has_focus(subsurface) {
-				let shell_handle = &window.shell_handle;
-				use shell_handle as shell;
-				if let Some(WLRXdgV6ShellState::TopLevel(ref mut toplevel)) = shell.state() {
-					toplevel.set_activated(true);
+	#[wlroots_dehandle(seat, subsurface)]
+	pub fn apply_focus_under_cursor(&mut self) {
+		let seat_handle = self.seat_handle.clone().unwrap();
+		let (cursor_x, cursor_y) = self.get_cursor_coordinates();
+		if let Some((window, subsurface_handle, sx, sy)) = self.get_window_and_subsurface_at(cursor_x, cursor_y) {
+			let mut should_apply_keyboard_focus = false;
+			{
+				use seat_handle as seat;
+				use subsurface_handle as subsurface;
+				if !seat.pointer_surface_has_focus(subsurface) {
+					seat.pointer_notify_enter(subsurface, sx, sy);
+					should_apply_keyboard_focus = true;
 				}
-				seat.pointer_notify_enter(subsurface, sx, sy);
-				seat.set_keyboard(keyboard.input_device());
-				seat.keyboard_notify_enter(subsurface, &mut keyboard.keycodes(), &mut keyboard.get_modifier_masks());
+			}
+			if should_apply_keyboard_focus {
+				let shell_handle = &window.shell_handle;
+				self.apply_keyboard_focus(shell_handle);
 			}
 		} else {
+			use seat_handle as seat;
 			seat.pointer_clear_focus();
 		}
 	}
 
 	#[wlroots_dehandle(seat)]
 	pub fn transfer_click_to_seat(&mut self, time: Duration, button: u32, state: u32) {
-		let seat_handle = self.seat_handle.clone().unwrap();
-		use seat_handle as seat;
-
-		seat.pointer_notify_button(time, button, state);
+		if let Some(ref seat_handle) = self.seat_handle {
+			use seat_handle as seat;
+			seat.pointer_notify_button(time, button, state);
+		}
 	}
 
-	#[wlroots_dehandle(cursor, seat)]
+	#[wlroots_dehandle(seat)]
 	pub fn transfer_motion_to_seat(&mut self, time: Duration) {
-		let cursor_handle = &self.cursor_handle.clone();
-		let seat_handle = self.seat_handle.clone().unwrap();
-
-		use cursor_handle as cursor;
-		use seat_handle as seat;
-
-		let (x, y) = cursor.coords();
-
-		if let Some((_window, _subsurface_handle, sx, sy)) = self.get_window_and_subsurface_at(x, y) {
-			seat.pointer_notify_motion(time, sx, sy);
+		if let Some(ref seat_handle) = self.seat_handle.clone() {
+			use seat_handle as seat;
+			let (cursor_x, cursor_y) = self.get_cursor_coordinates();
+			if let Some((_window, _subsurface_handle, sx, sy)) = self.get_window_and_subsurface_at(cursor_x, cursor_y) {
+				seat.pointer_notify_motion(time, sx, sy);
+			}
 		}
 	}
 
@@ -411,21 +410,20 @@ impl ComfyKernel {
 		value_discrete: i32,
 		source: wlr_axis_source,
 	) {
-		let seat_handle = self.seat_handle.clone().unwrap();
-		use seat_handle as seat;
-
-		seat.pointer_notify_axis(time, orientation, value, value_discrete, source);
+		if let Some(ref seat_handle) = self.seat_handle {
+			use seat_handle as seat;
+			seat.pointer_notify_axis(time, orientation, value, value_discrete, source);
+		}
 	}
 
 	fn get_window_at(&mut self, x: f64, y: f64) -> Option<Window> {
-		let mut result = None;
+		let mut window = None;
+
 		for (_, output_data) in self.output_data_map.iter_mut() {
-			result = output_data.workspace.window_layout.find_window_at(x, y);
-			if result.is_some() {
-				break;
-			}
+			window = output_data.workspace.window_layout.find_window_at(x, y);
+			if window.is_some() { break; }
 		}
-		result
+		window
 	}
 
 	#[wlroots_dehandle(cursor)]
