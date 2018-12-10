@@ -5,10 +5,10 @@ use wlroots::key_events::KeyEvent as WLRKeyEvent;
 use wlroots::pointer_events::AbsoluteMotionEvent;
 use wlroots::{
 	Capability, Compositor as WLRCompositor, CompositorBuilder as WLRCompositorBuilder, Cursor as WLRCursor,
-	SurfaceHandle as WLRSurfaceHandle, CursorHandle as WLRCursorHandle, KeyboardHandle as WLRKeyboardHandle, OutputLayout as WLROutputLayout,
-	OutputLayoutHandle as WLROutputLayoutHandle, Seat as WLRSeat, SeatHandle as WLRSeatHandle, Texture,
-	XCursorManager as WLRXCursorManager, XdgV6ShellState as WLRXdgV6ShellState,
-	XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle,
+	CursorHandle as WLRCursorHandle, KeyboardHandle as WLRKeyboardHandle, OutputLayout as WLROutputLayout,
+	OutputLayoutHandle as WLROutputLayoutHandle, Seat as WLRSeat, SeatHandle as WLRSeatHandle,
+	SurfaceHandle as WLRSurfaceHandle, Texture, XCursorManager as WLRXCursorManager,
+	XdgV6ShellState as WLRXdgV6ShellState, XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle,
 };
 
 use wlroots::wlroots_sys::{
@@ -334,7 +334,12 @@ impl ComfyKernel {
 
 	/// Returns a subsurface (and its offset) of the window that intersects the given the coordinates relative to the window's origin.
 	#[wlroots_dehandle(shell)]
-	fn get_window_subsurface_at(&mut self, window: &Window, surface_x: f64, surface_y: f64) -> Option<(WLRSurfaceHandle, f64, f64)> {
+	fn get_window_subsurface_at(
+		&mut self,
+		window: &Window,
+		surface_x: f64,
+		surface_y: f64,
+	) -> Option<(WLRSurfaceHandle, f64, f64)> {
 		let mut subsurface_x = 0.0;
 		let mut subsurface_y = 0.0;
 		let mut surface_handle_option = None;
