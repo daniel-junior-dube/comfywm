@@ -1,7 +1,7 @@
 use layout::LayoutDirection;
 use utils::animation::Animation;
 use utils::area_animation::AreaAnimation;
-use utils::handle_helper;
+use utils::handle_helper::surface_helper;
 use wlroots::utils::current_time;
 use wlroots::{
 	project_box as wlr_project_box, Area, Origin, Renderer as WLRRenderer, Size, SurfaceHandle as WLRSurfaceHandle,
@@ -109,6 +109,61 @@ impl Window {
 			surface_height * renderer.output.scale() as i32,
 		);
 
+		// Render the borders only when we have a top level window that is not fullscreen.
+		if surface_helper::is_top_level(&surface) && !self.is_fullscreen {
+			self.render_borders(
+				renderer,
+				window_area,
+				sx,
+				sy,
+				clear_color,
+				cursor_orientation_option,
+				cursor_color_option,
+				output_transform_matrix,
+			);
+		}
+
+		// The window_box is within the render_box, it is effectively the shell of the window we are rendering.
+		let window_origin = Origin::new(
+			window_area.origin.x + sx + border_offset,
+			window_area.origin.y + sy + border_offset,
+		);
+		let window_box = Area::new(window_origin, surface_size);
+		let window_matrix = wlr_project_box(window_box, transform, 0.0, output_transform_matrix);
+		if let Some(texture) = surface.texture().as_ref() {
+			// ? Restrict the render of the surface to the window's area if top level
+			// TODO: Update set and clear scissor in a wrapper method
+			if surface_helper::is_top_level(surface) {
+				// We apply the scissor inside the borders
+				let scissor_area = Area::new(
+					Origin::new(self.area.origin.x + border_offset, self.area.origin.y + border_offset),
+					Size::new(
+						self.area.size.width - total_border_offset,
+						self.area.size.height - total_border_offset,
+					),
+				);
+				renderer.render_scissor(scissor_area);
+				renderer.render_texture_with_matrix(texture, window_matrix);
+				renderer.render_scissor(None);
+			} else {
+				renderer.render_texture_with_matrix(texture, window_matrix);
+			}
+		}
+		surface.send_frame_done(current_time());
+	}
+
+	fn render_borders(
+		&self,
+		renderer: &mut WLRRenderer,
+		window_area: &Area,
+		sx: i32,
+		sy: i32,
+		clear_color: &[f32; 4],
+		cursor_orientation_option: Option<&LayoutDirection>,
+		cursor_color_option: Option<&[f32; 4]>,
+		output_transform_matrix: [f32; 9],
+	) {
+		let border_offset = self.get_border_size();
 		// the render box is the whole subdivision of the screen (the shell including the Comfy's borders).
 		let render_origin = Origin::new(window_area.origin.x + sx, window_area.origin.y + sy);
 		let render_box = Area::new(render_origin, window_area.size);
@@ -118,8 +173,7 @@ impl Window {
 
 		// This section is used to render cursor indicator if needed (the window rendering right now is the active
 		// window and is not fullscreen)
-		if cursor_orientation_option.is_some() && !self.is_fullscreen {
-			let cursor_orientation = cursor_orientation_option.unwrap();
+		if let Some(cursor_orientation) = cursor_orientation_option {
 			let mut cursor_indicator_offset_x = window_area.origin.x + sx;
 			let mut cursor_indicator_offset_y = window_area.origin.y + sy;
 			let mut cursor_indicator_width = border_offset;
@@ -147,34 +201,6 @@ impl Window {
 				output_transform_matrix,
 			);
 		}
-
-		// The window_box is within the render_box, it is effectively the shell of the window we are rendering.
-		let window_origin = Origin::new(
-			window_area.origin.x + sx + border_offset,
-			window_area.origin.y + sy + border_offset,
-		);
-		let window_box = Area::new(window_origin, surface_size);
-		let window_matrix = wlr_project_box(window_box, transform, 0.0, output_transform_matrix);
-		if let Some(texture) = surface.texture().as_ref() {
-			// ? Restrict the render of the surface to the window's area if top level
-			// TODO: Update set and clear scissor in a wrapper method
-			if handle_helper::surface_helper::is_top_level(surface) {
-				// We apply the scissor inside the borders
-				let scissor_area = Area::new(
-					Origin::new(self.area.origin.x + border_offset, self.area.origin.y + border_offset),
-					Size::new(
-						self.area.size.width - total_border_offset,
-						self.area.size.height - total_border_offset,
-					),
-				);
-				renderer.render_scissor(scissor_area);
-				renderer.render_texture_with_matrix(texture, window_matrix);
-				renderer.render_scissor(None);
-			} else {
-				renderer.render_texture_with_matrix(texture, window_matrix);
-			}
-		}
-		surface.send_frame_done(current_time());
 	}
 
 	pub fn get_border_size(&self) -> i32 {
