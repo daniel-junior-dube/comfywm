@@ -1,4 +1,3 @@
-
 /// Enum of all animation variants.
 #[derive(Clone)]
 #[allow(dead_code)]

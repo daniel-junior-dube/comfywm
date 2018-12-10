@@ -168,9 +168,7 @@ impl ComfyKernel {
 	/// Sets or unsets the fullscreen active window.
 	pub fn toggle_active_window_fullscreen(&mut self) {
 		if let Some(OutputData { workspace, .. }) = self.output_data_map.get_mut(&self.active_output_name) {
-			workspace
-				.window_layout
-				.toggle_active_window_fullscreen();
+			workspace.window_layout.toggle_active_window_fullscreen();
 		}
 	}
 
@@ -226,16 +224,17 @@ impl ComfyKernel {
 		let mut active_shell_option = None;
 		if let Some(OutputData { workspace, .. }) = self.output_data_map.get_mut(&self.active_output_name) {
 			// TODO: Handle manual direction change for insertion
-			active_shell_option = match workspace
-				.window_layout
-				.add_shell_handle(shell_handle, &current_cursor_direction, true, true)
-			{
-				Err(e) => {
-					error!("{}", e);
-					None
-				},
-				Ok(_) => workspace.window_layout.get_active_shell_handle()
-			}
+			active_shell_option =
+				match workspace
+					.window_layout
+					.add_shell_handle(shell_handle, &current_cursor_direction, true, true)
+				{
+					Err(e) => {
+						error!("{}", e);
+						None
+					}
+					Ok(_) => workspace.window_layout.get_active_shell_handle(),
+				}
 		} else {
 			error!(
 				"Failed to get output data for active output: {}",
