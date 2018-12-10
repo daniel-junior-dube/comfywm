@@ -79,12 +79,12 @@ pub fn generate_default_compositor() -> WLRCompositor {
 	{
 		let mut gles2 = &mut compositor.renderer.as_mut().unwrap();
 		let comfy_kernel: &mut ComfyKernel = (&mut compositor.data).downcast_mut().unwrap();
-		let wallpaper_path_option = comfy_kernel.config.wallpaper_path.clone();
-		if let Some(wallpaper_path) = wallpaper_path_option {
-			match texture_helper::load_texture(&mut gles2, &Path::new(&wallpaper_path)) {
-				Ok(wallpaper_texture) => comfy_kernel.wallpaper_texture = Some(wallpaper_texture),
-				Err(e) => error!("{}", e),
-			}
+		match texture_helper::load_texture(
+			&mut gles2,
+			&Path::new(&comfy_kernel.config.theme.wallpaper_path.clone()),
+		) {
+			Ok(wallpaper_texture) => comfy_kernel.wallpaper_texture = Some(wallpaper_texture),
+			Err(e) => error!("{}", e),
 		}
 	}
 
@@ -122,7 +122,7 @@ pub struct ComfyKernel {
 	pub seat_handle: Option<WLRSeatHandle>,
 	pub config: Config,
 	pub currently_pressed_keys: XkbKeySet,
-	cursor_direction: LayoutDirection,
+	pub cursor_direction: LayoutDirection,
 	pub wallpaper_texture: Option<Texture<'static>>,
 }
 
@@ -224,17 +224,19 @@ impl ComfyKernel {
 		let mut active_shell_option = None;
 		if let Some(OutputData { workspace, .. }) = self.output_data_map.get_mut(&self.active_output_name) {
 			// TODO: Handle manual direction change for insertion
-			active_shell_option =
-				match workspace
-					.window_layout
-					.add_shell_handle(shell_handle, &current_cursor_direction, true, true)
-				{
-					Err(e) => {
-						error!("{}", e);
-						None
-					}
-					Ok(_) => workspace.window_layout.get_active_shell_handle(),
+			active_shell_option = match workspace.window_layout.add_shell_handle(
+				shell_handle,
+				&current_cursor_direction,
+				self.config.theme.border_size,
+				true,
+				true,
+			) {
+				Err(e) => {
+					error!("{}", e);
+					None
 				}
+				Ok(_) => workspace.window_layout.get_active_shell_handle(),
+			}
 		} else {
 			error!(
 				"Failed to get output data for active output: {}",

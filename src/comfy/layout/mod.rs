@@ -378,7 +378,10 @@ impl Layout {
 		None
 	}
 
-	pub fn apply_to_active_window<F>(&mut self, mut f: F) where F: FnMut(&mut Window) {
+	pub fn apply_to_active_window<F>(&mut self, mut f: F)
+	where
+		F: FnMut(&mut Window),
+	{
 		if self.layout_tree.active_node_is_root() {
 			return;
 		}
@@ -389,7 +392,10 @@ impl Layout {
 	}
 
 	/// Applies the provided function to each windows in the layout.
-	pub fn for_each_window<F>(&mut self, mut f: F) where F: FnMut(&mut Window) {
+	pub fn for_each_window<F>(&mut self, mut f: F)
+	where
+		F: FnMut(&mut Window),
+	{
 		self
 			.leaf_index_to_windows_map
 			.iter_mut()
@@ -397,13 +403,18 @@ impl Layout {
 	}
 
 	/// Applies the provided function to each windows in the layout.
-	pub fn for_each_non_active_window<F>(&mut self, mut f: F) where F: FnMut(&mut Window) {
+	pub fn for_each_non_active_window<F>(&mut self, mut f: F)
+	where
+		F: FnMut(&mut Window),
+	{
 		let active_node_index = self.layout_tree.active_node_index;
 		self
 			.leaf_index_to_windows_map
 			.iter_mut()
-			.for_each(|(&leaf_node_index, window)| if leaf_node_index != active_node_index {
-				f(window);
+			.for_each(|(&leaf_node_index, window)| {
+				if leaf_node_index != active_node_index {
+					f(window);
+				}
 			});
 	}
 
@@ -495,11 +506,12 @@ impl Layout {
 		&mut self,
 		shell_handle: WLRXdgV6ShellSurfaceHandle,
 		direction: &LayoutDirection,
+		border_size: u8,
 		set_as_last_activated: bool,
 		rebalance_after_insertion: bool,
 	) -> Result<(), String> {
 		// ? Add the top level shell as a new window
-		let mut window = Window::new_empty_area(shell_handle);
+		let mut window = Window::new_empty_area(shell_handle, border_size);
 		window.set_maximized();
 		let index_of_new_node = self
 			.layout_tree

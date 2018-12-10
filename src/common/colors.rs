@@ -7,6 +7,8 @@
 ................................................
 */
 
+use regex::Regex;
+
 pub struct RgbaColor {
 	r: f32,
 	g: f32,
@@ -32,6 +34,10 @@ pub struct HexColor {
 }
 
 impl HexColor {
+	pub fn new(r: u8, g: u8, b: u8, a: u8) -> Self {
+		HexColor { r, g, b, a }
+	}
+
 	pub fn as_slice(&self) -> [u8; 4] {
 		[self.r, self.g, self.b, self.a]
 	}
@@ -42,6 +48,26 @@ impl HexColor {
 			g: self.g as f32 / 255.0,
 			b: self.b as f32 / 255.0,
 			a: self.a as f32 / 255.0,
+		}
+	}
+
+	pub fn from_str(hexcode_str: &str) -> Result<HexColor, String> {
+		lazy_static! {
+			static ref re: Regex = Regex::new(r"#([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})([0-9a-fA-F]{2})?").unwrap();
+		}
+		if re.is_match(hexcode_str) {
+			let groups = re.captures(hexcode_str).unwrap();
+			let r = u8::from_str_radix(groups.get(1).unwrap().as_str(), 16).unwrap();
+			let g = u8::from_str_radix(groups.get(2).unwrap().as_str(), 16).unwrap();
+			let b = u8::from_str_radix(groups.get(3).unwrap().as_str(), 16).unwrap();
+			let a = if let Some(a_str) = groups.get(4) {
+				u8::from_str_radix(a_str.as_str(), 16).unwrap()
+			} else {
+				255
+			};
+			Ok(HexColor::new(r, g, b, a))
+		} else {
+			Err(format!("Invalid hexadecimal format {}", hexcode_str))
 		}
 	}
 }

@@ -1,7 +1,6 @@
 use wlroots::{
-	Area, CompositorHandle as WLRCompositorHandle, Origin,
-	OutputBuilder as WLROutputBuilder, OutputBuilderResult as WLROutputBuilderResult, OutputHandle as WLROutputHandle,
-	OutputHandler as WLROutputHandler,
+	Area, CompositorHandle as WLRCompositorHandle, Origin, OutputBuilder as WLROutputBuilder,
+	OutputBuilderResult as WLROutputBuilderResult, OutputHandle as WLROutputHandle, OutputHandler as WLROutputHandler,
 	OutputLayoutHandler as WLROutputLayoutHandler, /* , OutputDestruction as WLROutputDestruction */
 	OutputManagerHandler as WLROutputManagerHandler, Size,
 };
@@ -73,6 +72,10 @@ impl WLROutputHandler for OutputHandler {
 
 		// ? Clearing the screen and get indices of windows to render
 		let wallpaper_option = &comfy_kernel.wallpaper_texture;
+		let active_color = &comfy_kernel.config.theme.active_color.as_slice();
+		let inactive_color = &comfy_kernel.config.theme.inactive_color.as_slice();
+		let cursor_indicator_color = &comfy_kernel.config.theme.cursor_indicator_color.as_slice();
+		let cursor_orentation = comfy_kernel.cursor_direction.clone();
 		if let Some(OutputData {
 			workspace, clear_color, ..
 		}) = comfy_kernel.output_data_map.get_mut(&output_name)
@@ -97,7 +100,7 @@ impl WLROutputHandler for OutputHandler {
 					if window_ref.has_active_animation() {
 						window_ref.progress_animation();
 					}
-					window_ref.render_top_level_surface(&mut render_context);
+					window_ref.render_all_surface(&mut render_context, inactive_color, None, None);
 				});
 			}
 
@@ -105,7 +108,12 @@ impl WLROutputHandler for OutputHandler {
 				if window_ref.has_active_animation() {
 					window_ref.progress_animation();
 				}
-				window_ref.render_all_surface(&mut render_context);
+				window_ref.render_all_surface(
+					&mut render_context,
+					active_color,
+					Some(&cursor_orentation),
+					Some(cursor_indicator_color),
+				);
 			});
 		}
 	}

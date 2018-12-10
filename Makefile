@@ -27,14 +27,19 @@ install:
 	cp -f target/release/comfywm /bin
 	chmod 755 /bin/comfywm
 
-	# Copying the configuration files to the system
+	# Copying the default configuration files to the system
 	mkdir -p /etc/comfywm
-	cp -f config/keybindings.toml config/theme.toml /etc/comfywm/
+	cp -f config/* /etc/comfywm/
+
+	# Copying the wallpaper to the system
+	mkdir -p /usr/share/comfywm/
+	cp -f data/wallpaper.jpg /usr/share/comfywm/
 
 	# Copying the desktop entry to the system
 	cp -f data/comfy.desktop /usr/share/wayland-sessions
 
 uninstall:
 	rm -f /bin/comfywm
-	rm -rfb /etc/comfywm
+	rm -rf /etc/comfywm
 	rm -f /usr/share/wayland-sessions/comfy.desktop
+	rm -rf /usr/share/comfywm

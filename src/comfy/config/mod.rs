@@ -1,9 +1,11 @@
 pub mod global;
 pub mod keybinding;
 pub mod parser;
+pub mod theme;
 
 use self::global::Global;
 use self::keybinding::Keybindings;
+use self::theme::Theme;
 use std::env::var;
 use std::fs::File;
 
@@ -11,14 +13,13 @@ const SYSTEM_DEFAULT_KEYBINDINGS_PATH: &str = "/etc/comfywm/keybindings.toml";
 const USER_KEYBINDINGS_PATH: &str = "/.config/comfywm/keybindings.toml";
 const SYSTEM_DEFAULT_CONFIG_PATH: &str = "/etc/comfywm/global.toml";
 const USER_GLOBAL_CONFIG_PATH: &str = "/.config/comfywm/global.toml";
-// TODO: import theme config
-// const SYSTEM_DEFAULT_THEME: &str = "/etc/comfywm/theme.toml";
-// const USER__THEME: &str = "/.config/comfywm/theme.toml";
+const SYSTEM_DEFAULT_THEME_PATH: &str = "/etc/comfywm/theme.toml";
+const USER_THEME_PATH: &str = "/.config/comfywm/theme.toml";
 
 pub struct Config {
 	pub keybindings: Keybindings,
 	pub global: Global,
-	pub wallpaper_path: Option<String>,
+	pub theme: Theme,
 }
 
 impl Config {
@@ -42,15 +43,42 @@ impl Config {
 			}
 		};
 
-		// TODO: Get the wallpaper path from the config
-		let wallpaper_path = Some("data/wallpaper.jpg".to_string());
+		let theme = match load_user_theme_config() {
+			Ok(theme) => theme,
+			Err(e) => {
+				warn!("Could not load the user's theme config: {}", e);
+				load_system_default_theme()
+			}
+		};
 
 		Config {
 			keybindings,
 			global,
-			wallpaper_path,
+			theme,
 		}
 	}
+}
+
+fn load_user_theme_config() -> Result<Theme, String> {
+	let user_home_path = var("HOME");
+	if !user_home_path.is_ok() {
+		return Err("No HOME variable set for the current user.".to_string());
+	}
+
+	match File::open(format!("{}{}", user_home_path.unwrap(), USER_THEME_PATH)) {
+		Ok(user_config_file) => match Theme::load(user_config_file) {
+			Ok(theme) => Ok(theme),
+			Err(e) => Err(format!("The user's theme configuration contained error(s): {}", e)),
+		},
+		Err(e) => Err(format!("Could not open the user's theme file: {}", e)),
+	}
+}
+
+fn load_system_default_theme() -> Theme {
+	info!("Loading system default theme configuration");
+	let system_default_theme_config =
+		File::open(SYSTEM_DEFAULT_THEME_PATH).expect("Fatal error: Could open theme config!");
+	Theme::load(system_default_theme_config).expect("Fatal error: could not load any theme config files!")
 }
 
 fn load_user_global_config() -> Result<Global, String> {
