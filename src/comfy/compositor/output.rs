@@ -73,8 +73,10 @@ impl WLROutputHandler for OutputHandler {
 
 		// ? Clearing the screen and get indices of windows to render
 		let wallpaper_option = &comfy_kernel.wallpaper_texture;
-		if let Some(OutputData {workspace, clear_color, ..}) = comfy_kernel.output_data_map.get_mut(&output_name) {
-
+		if let Some(OutputData {
+			workspace, clear_color, ..
+		}) = comfy_kernel.output_data_map.get_mut(&output_name)
+		{
 			// ? Clear the screen with an image or the render color otherwise
 			if let Some(wallpaper_texture) = wallpaper_option {
 				let (texture_width, texture_height) = wallpaper_texture.size();

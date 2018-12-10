@@ -14,7 +14,39 @@ pub fn convert_to_xkb_string(modkey_str: &str, keyset: &str) -> Result<Vec<Strin
 	}
 
 	// Return all the possible combinations of valid XkbKeySet as a multiple Strings
-	Ok(create_combinations_as_string(canonicalized_keys))
+	Ok(apply_casing(create_combinations_as_string(canonicalized_keys)))
+}
+
+/// A function that is used to apply an uppercase on single letter when there's a "Shift" in the combination
+fn apply_casing(key_combinations: Vec<String>) -> Vec<String> {
+	let mut key_combinations_with_casing = Vec::new();
+
+	for key_combination in key_combinations {
+		let splitted_keys: Vec<&str> = key_combination.split("+").collect();
+		let bad_casing = splitted_keys
+			.iter()
+			.find(|key| key.to_string().starts_with("Shift"))
+			.is_some();
+		let has_a_single_letter = splitted_keys.iter().find(|key| key.len() == 1).is_some();
+
+		// Check if we have to apply the appropriate casing.
+		// In other words : if we have a Shift and a single key in the combination.
+		if bad_casing && has_a_single_letter {
+			let combination_with_casing: Vec<String> = splitted_keys
+				.into_iter()
+				.map(|key| {
+					if key.to_string().len() == 1 {
+						key.to_string().to_uppercase()
+					} else {
+						key.to_string()
+					}
+				}).collect();
+			key_combinations_with_casing.push(combination_with_casing.join("+"));
+		} else {
+			key_combinations_with_casing.push(key_combination.clone());
+		}
+	}
+	key_combinations_with_casing
 }
 
 /// A recursive function that take multiple keys and return all the possible combinations within them.
@@ -63,8 +95,15 @@ fn canonicalize_key(key: &str) -> Result<Vec<String>, String> {
 		"Alt" => Ok(vec!["Alt_L".to_string(), "Alt_R".to_string()]),
 		"Shift" => Ok(vec!["Shift_L".to_string(), "Shift_R".to_string()]),
 		_ => {
+			// Check if the key is valid
 			XkbKeySet::from_str(key)?;
-			Ok(vec![key.to_string()])
+
+			// By default single letters are stored in lowercase
+			if key.len() == 1 {
+				Ok(vec![key.to_string().to_lowercase()])
+			} else {
+				Ok(vec![key.to_string()])
+			}
 		}
 	}
 }

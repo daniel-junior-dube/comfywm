@@ -26,7 +26,12 @@ pub struct Window {
 
 impl Window {
 	pub fn new(shell_handle: WLRXdgV6ShellSurfaceHandle, area: Area) -> Self {
-		Window { shell_handle, area, is_fullscreen: false, current_area_animation: None }
+		Window {
+			shell_handle,
+			area,
+			is_fullscreen: false,
+			current_area_animation: None,
+		}
 	}
 
 	/// Creates a window with an empty area.
@@ -91,12 +96,12 @@ impl Window {
 	pub fn toggle_fullscreen(&mut self, is_fullscreen: bool) {
 		self.is_fullscreen = is_fullscreen;
 		self
-				.shell_handle
-				.run(|shell| {
-					if let Some(&mut WLRXdgV6ShellState::TopLevel(ref mut toplevel)) = shell.state() {
-						toplevel.set_fullscreen(is_fullscreen);
-					}
-				}).unwrap();
+			.shell_handle
+			.run(|shell| {
+				if let Some(&mut WLRXdgV6ShellState::TopLevel(ref mut toplevel)) = shell.state() {
+					toplevel.set_fullscreen(is_fullscreen);
+				}
+			}).unwrap();
 	}
 
 	/// Sets the top level shell as maximized.
