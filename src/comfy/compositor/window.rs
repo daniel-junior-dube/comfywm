@@ -67,7 +67,7 @@ impl Window {
 			}).unwrap();
 	}
 
-	pub fn render_all_surface(
+	pub fn render_all_surfaces(
 		&self,
 		renderer: &mut WLRRenderer,
 		clear_color: &[f32; 4],

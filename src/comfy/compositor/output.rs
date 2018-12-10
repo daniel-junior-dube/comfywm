@@ -100,7 +100,7 @@ impl WLROutputHandler for OutputHandler {
 					if window_ref.has_active_animation() {
 						window_ref.progress_animation();
 					}
-					window_ref.render_all_surface(&mut render_context, inactive_color, None, None);
+					window_ref.render_all_surfaces(&mut render_context, inactive_color, None, None);
 				});
 			}
 
@@ -108,11 +108,11 @@ impl WLROutputHandler for OutputHandler {
 				if window_ref.has_active_animation() {
 					window_ref.progress_animation();
 				}
-				window_ref.render_all_surface(
+				window_ref.render_all_surfaces(
 					&mut render_context,
 					active_color,
 					Some(&cursor_orentation),
-					Some(cursor_indicator_color),
+					Some(cursor_indicator_color)
 				);
 			});
 		}
