@@ -1,6 +1,7 @@
-CARGO_OPTS =
+CARGO_OPTS=
 
-CARGO = cargo $(CARGO_OPTS)
+CARGO=cargo $(CARGO_OPTS)
+SESSION=wayland-sessions
 
 all:
 	$(MAKE) build
@@ -23,6 +24,12 @@ doc:
 
 # Requires sudo rights
 install:
+ifdef x11
+	@echo "INSTALLING AS X11 SESSION"
+	$(eval override SESSION=xsessions)
+else
+	@echo "INSTALLING AS WAYLAND SESSION"
+endif
 	# Copying the binairies files to the system
 	cp -f target/release/comfywm /bin
 	chmod 755 /bin/comfywm
@@ -36,10 +43,11 @@ install:
 	cp -f data/wallpaper.jpg /usr/share/comfywm/
 
 	# Copying the desktop entry to the system
-	cp -f data/comfy.desktop /usr/share/wayland-sessions
+	cp -f data/comfy.desktop /usr/share/$(SESSION)
 
 uninstall:
 	rm -f /bin/comfywm
 	rm -rf /etc/comfywm
+	rm -f /usr/share/xsessions/comfy.desktop
 	rm -f /usr/share/wayland-sessions/comfy.desktop
 	rm -rf /usr/share/comfywm
