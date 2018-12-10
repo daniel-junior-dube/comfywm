@@ -249,8 +249,15 @@ impl Window {
 		}
 	}
 
+	/// Cancels the current animation.
+	fn cancel_animation(&mut self) {
+		self.current_area_animation = None;
+	}
+
 	/// Sets the current size of the window and applies the area to the shell.
+	/// Also cancels the current animation if any.
 	pub fn resize(&mut self, new_area: Area) {
+		self.cancel_animation();
 		self.area = new_area;
 		self.apply_resize();
 	}
