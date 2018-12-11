@@ -325,4 +325,40 @@ impl Window {
 		let local_y = y - (self.area.origin.y as f64);
 		(local_x, local_y)
 	}
+
+	/// Convert the given output-related coordinates into window-related coordinates.
+	pub fn convert_window_coord_to_surface(&self, x: f64, y: f64) -> (f64, f64) {
+		let border_size = self.get_border_size() as f64;
+		let surface_x = x - border_size;
+		let surface_y = y - border_size;
+		(surface_x, surface_y)
+	}
+
+	/// Convert the given output-related coordinates into window-related coordinates.
+	pub fn convert_output_coord_to_surface(&self, x: f64, y: f64) -> (f64, f64) {
+		let (window_x, window_y) = self.convert_output_coord_to_window(x, y);
+		self.convert_window_coord_to_surface(window_x, window_y)
+	}
+
+	#[wlroots_dehandle(shell)]
+	pub fn get_subsurface_at(
+		&self,
+		window_x: f64,
+		window_y: f64,
+	) -> Option<(WLRSurfaceHandle, f64, f64)> {
+		let mut subsurface_x = 0.0;
+		let mut subsurface_y = 0.0;
+		let mut surface_handle_option = None;
+		{
+			let shell_handle = &self.shell_handle;
+			use shell_handle as shell;
+			let (surface_x, surface_y) = self.convert_window_coord_to_surface(window_x, window_y);
+			surface_handle_option = shell.surface_at(surface_x, surface_y, &mut subsurface_x, &mut subsurface_y);
+		}
+		if let Some(surface_handle) = surface_handle_option {
+			Some((surface_handle, subsurface_x, subsurface_y))
+		} else {
+			None
+		}
+	}
 }

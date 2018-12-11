@@ -4,10 +4,11 @@ use std::{collections::HashMap, time::Duration};
 use wlroots::key_events::KeyEvent as WLRKeyEvent;
 use wlroots::pointer_events::AbsoluteMotionEvent;
 use wlroots::{
+	Output as WLROutput, Area, Origin, Size,
 	Capability, Compositor as WLRCompositor, CompositorBuilder as WLRCompositorBuilder, Cursor as WLRCursor,
 	CursorHandle as WLRCursorHandle, KeyboardHandle as WLRKeyboardHandle, OutputLayout as WLROutputLayout,
-	OutputLayoutHandle as WLROutputLayoutHandle, Seat as WLRSeat, SeatHandle as WLRSeatHandle,
-	SurfaceHandle as WLRSurfaceHandle, Texture, XCursorManager as WLRXCursorManager,
+	OutputHandle as WLROutputHandle, OutputLayoutHandle as WLROutputLayoutHandle, Seat as WLRSeat, SeatHandle as WLRSeatHandle,
+	Texture, XCursorManager as WLRXCursorManager,
 	XdgV6ShellState as WLRXdgV6ShellState, XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle,
 };
 
@@ -35,6 +36,7 @@ use input::seat::SeatHandler;
 use input::InputManagerHandler;
 use layout::LayoutDirection;
 use utils::graphics::texture_helper;
+use utils::handle_helper::output_helper;
 
 /*
 ..####....####...##...##..#####....####....####...######..######...####...#####..
@@ -147,6 +149,53 @@ impl ComfyKernel {
 			cursor_direction: LayoutDirection::Right,
 			wallpaper_texture: None,
 		}
+	}
+
+	/// Returns true if the provided surface is a top level surface.
+	#[wlroots_dehandle(output_layout)]
+	fn generate_output_area(&self, output: &mut WLROutput) -> Area {
+		let output_layout_handle = &self.output_layout_handle;
+		use output_layout_handle as output_layout;
+		let mut x: f64 = 0.0;
+		let mut y: f64 = 0.0;
+		output_layout.output_coords(output, &mut x, &mut y);
+		let (width, height) = output.effective_resolution();
+		Area::new(Origin::new(x as i32, y as i32), Size::new(width, height))
+	}
+
+	#[wlroots_dehandle(output, cursor, output_layout)]
+	pub fn add_output(&mut self, output_handle: &WLROutputHandle, set_as_active_output: bool) {
+		use output_handle as output;
+
+		let output_name = output.name();
+		info!("New output detected, named: {}", output_name);
+
+		if set_as_active_output {
+			self.active_output_name = output_name.clone();
+		}
+		{
+			let xcursor_manager = &mut self.xcursor_manager;
+			// TODO use output config if present instead of auto
+			let output_layout_handle = &mut self.output_layout_handle;
+			let cursor_handle = &mut self.cursor_handle;
+
+			use cursor_handle as cursor;
+			{
+				use output_layout_handle as output_layout;
+				output_layout.add_auto(output);
+				cursor.attach_output_layout(output_layout);
+			}
+			xcursor_manager.load(output.scale());
+			xcursor_manager.set_cursor_image("left_ptr".to_string(), cursor);
+			let (x, y) = cursor.coords();
+			// https://en.wikipedia.org/wiki/Mouse_warping
+			cursor.warp(None, x, y);
+		}
+
+		let output_area = self.generate_output_area(output);
+		let output_data_map = &mut self.output_data_map;
+		debug!("New output_area: {:?}", output_area);
+		output_data_map.insert(output.name(), OutputData::new(output_area));
 	}
 
 	/// Schedule a frame of the output which the name match with the provided string
@@ -272,10 +321,12 @@ impl ComfyKernel {
 		}
 
 		// TODO: Should fallback focus only if the containing output is the active one
-		if let Some(fallback_shell_handle) = fallback_shell_handle_option {
-			self.apply_keyboard_focus(&fallback_shell_handle);
-		}
 		if let Some(output_name) = name_of_container_output {
+			if self.is_active_output(&output_name) {
+				if let Some(fallback_shell_handle) = fallback_shell_handle_option {
+					self.apply_keyboard_focus(&fallback_shell_handle);
+				}
+			}
 			self.schedule_frame_for_output(&output_name)
 		}
 	}
@@ -309,81 +360,66 @@ impl ComfyKernel {
 		}
 	}
 
-	/// Return a tuple for a window which contains a subsurface that intersects with the provided absolute coordinates.
-	/// Checks the active window first, since there is more chances that it intersects.
-	/// This is mainly used to make sure we send pointer event relative to the surface under the pointer.
-	// TODO: Maybe we should separate this into 2 separate functions. One that checks the active window and the other, the get_window_at...
-	pub fn get_window_and_subsurface_at(&mut self, x: f64, y: f64) -> Option<(Window, WLRSurfaceHandle, f64, f64)> {
-		let mut subsurface_intersection_at = None;
-		if let Some(window) = self.get_active_window() {
-			let (sx, sy) = window.convert_output_coord_to_window(x, y);
-			if let Some((surface_handle, sx, sy)) = self.get_window_subsurface_at(&window, sx, sy) {
-				subsurface_intersection_at = Some((window, surface_handle, sx, sy));
+	/// Returns the name of the output and output-related coordinates at the intersects with the given position.
+	fn get_output_intersection_at(&self, x: f64, y: f64) -> Option<(String, f64, f64)> {
+		let mut output_name_option = None;
+		// ? Finds the containing layout to find the containing node and set it as last activated
+		for (output_name, output_data) in self.output_data_map.iter() {
+			if let Some((output_x, output_y)) = output_data.workspace.window_layout.intersection_at(x, y) {
+				output_name_option = Some((output_name.clone(), output_x, output_y));
+				break;
 			}
 		}
-		if subsurface_intersection_at.is_none() {
-			if let Some(window) = self.get_window_at(x, y) {
-				let (sx, sy) = window.convert_output_coord_to_window(x, y);
-				if let Some((surface_handle, sx, sy)) = self.get_window_subsurface_at(&window, sx, sy) {
-					subsurface_intersection_at = Some((window, surface_handle, sx, sy));
-				}
-			}
-		}
-		subsurface_intersection_at
-	}
-
-	/// Returns a subsurface (and its offset) of the window that intersects the given the coordinates relative to the window's origin.
-	#[wlroots_dehandle(shell)]
-	fn get_window_subsurface_at(
-		&mut self,
-		window: &Window,
-		surface_x: f64,
-		surface_y: f64,
-	) -> Option<(WLRSurfaceHandle, f64, f64)> {
-		let mut subsurface_x = 0.0;
-		let mut subsurface_y = 0.0;
-		let mut surface_handle_option = None;
-		{
-			let shell_handle = &window.shell_handle;
-			use shell_handle as shell;
-			surface_handle_option = shell.surface_at(surface_x, surface_y, &mut subsurface_x, &mut subsurface_y);
-		}
-		if let Some(surface_handle) = surface_handle_option {
-			Some((surface_handle, subsurface_x, subsurface_y))
-		} else {
-			None
-		}
+		output_name_option
 	}
 
 	/// Returns the coordinates of the cursor location relative to the currently active output.
 	#[wlroots_dehandle(cursor)]
-	fn get_cursor_coordinates(&self) -> (f64, f64) {
+	pub fn get_cursor_coordinates(&self) -> (f64, f64) {
 		let cursor_handle = &self.cursor_handle;
 		use cursor_handle as cursor;
 		cursor.coords()
 	}
 
+	fn is_active_output(&self, output_name: &str) -> bool {
+		output_name == self.active_output_name
+	}
+
+	fn set_output_under_cursor_as_active(&mut self) {
+		let (cursor_x, cursor_y) = self.get_cursor_coordinates();
+		if let Some((output_name, _output_x, _output_y)) = self.get_output_intersection_at(cursor_x, cursor_y) {
+			if !self.is_active_output(&output_name) {
+				self.active_output_name = output_name.clone();
+				debug!("New active output: {}", self.active_output_name);
+			}
+		}
+	}
+
 	#[wlroots_dehandle(seat, subsurface)]
 	pub fn apply_focus_under_cursor(&mut self) {
-		let seat_handle = self.seat_handle.clone().unwrap();
-		let (cursor_x, cursor_y) = self.get_cursor_coordinates();
-		if let Some((window, subsurface_handle, sx, sy)) = self.get_window_and_subsurface_at(cursor_x, cursor_y) {
-			let mut should_apply_keyboard_focus = false;
-			{
+		debug!("apply_focus_under_cursor");
+	        let seat_handle = self.seat_handle.clone().unwrap();
+		self.set_output_under_cursor_as_active();
+		debug!("apply_focus_under_cursor active output: {}", self.active_output_name);
+	        let seat_handle = self.seat_handle.clone().unwrap();
+		let mut shell_handle_option = None;
+		self.output_data_map.get(&self.active_output_name).map(|output_data| {
+			let (cursor_x, cursor_y) = self.get_cursor_coordinates();
+			debug!("apply_focus_under_cursor cursor pos: {} {}", cursor_x, cursor_y);
+			if let Some((window, subsurface_handle, surface_x, surface_y)) = output_data.get_window_and_subsurface_at(cursor_x, cursor_y) {
 				use seat_handle as seat;
 				use subsurface_handle as subsurface;
 				if !seat.pointer_surface_has_focus(subsurface) {
-					seat.pointer_notify_enter(subsurface, sx, sy);
-					should_apply_keyboard_focus = true;
+					seat.pointer_notify_enter(subsurface, surface_x, surface_y);
+					shell_handle_option = Some(window.shell_handle.clone());
 				}
+			} else {
+				use seat_handle as seat;
+				seat.pointer_clear_focus();
 			}
-			if should_apply_keyboard_focus {
-				let shell_handle = &window.shell_handle;
-				self.apply_keyboard_focus(shell_handle);
-			}
-		} else {
-			use seat_handle as seat;
-			seat.pointer_clear_focus();
+		});
+		if let Some(shell_handle) = shell_handle_option {
+			self.apply_keyboard_focus(&shell_handle);
 		}
 	}
 
@@ -400,8 +436,11 @@ impl ComfyKernel {
 		if let Some(ref seat_handle) = self.seat_handle.clone() {
 			use seat_handle as seat;
 			let (cursor_x, cursor_y) = self.get_cursor_coordinates();
-			if let Some((_window, _subsurface_handle, sx, sy)) = self.get_window_and_subsurface_at(cursor_x, cursor_y) {
-				seat.pointer_notify_motion(time, sx, sy);
+			if let Some((output_name, output_x, output_y)) = self.get_output_intersection_at(cursor_x, cursor_y) {
+				let output_data = self.output_data_map.get(&output_name).unwrap();
+				if let Some((_window, _subsurface_handle, surface_x, surface_y)) = output_data.get_window_and_subsurface_at(cursor_x, cursor_y) {
+					seat.pointer_notify_motion(time, surface_x, surface_y);
+				}
 			}
 		}
 	}
@@ -419,16 +458,6 @@ impl ComfyKernel {
 			use seat_handle as seat;
 			seat.pointer_notify_axis(time, orientation, value, value_discrete, source);
 		}
-	}
-
-	fn get_window_at(&mut self, x: f64, y: f64) -> Option<Window> {
-		let mut window = None;
-
-		for (_, output_data) in self.output_data_map.iter_mut() {
-			window = output_data.workspace.window_layout.find_window_at(x, y);
-			if window.is_some() { break; }
-		}
-		window
 	}
 
 	#[wlroots_dehandle(cursor)]

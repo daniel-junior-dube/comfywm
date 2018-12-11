@@ -613,7 +613,7 @@ impl Layout {
 		}
 	}
 
-	pub fn find_window_at(&mut self, x: f64, y: f64) -> Option<Window> {
+	pub fn find_window_at(&self, x: f64, y: f64) -> Option<Window> {
 		let mut window_option = None;
 
 		// ? Find index of node at position
@@ -630,6 +630,16 @@ impl Layout {
 			window_option = self.leaf_index_to_windows_map.get(&node_index).cloned();
 		}
 		window_option
+	}
+
+	/// Returns true if the layout intersects with the given coordinates.
+	pub fn intersection_at(&self, x: f64, y: f64) -> Option<(f64, f64)> {
+		if self.layout_tree.node_contains_point(INDEX_OF_ROOT, x, y) {
+			let layout_area = self.layout_tree.area().unwrap();
+			let layout_origin = &layout_area.origin;
+			return Some((x - layout_origin.x as f64, y - layout_origin.y as f64));
+		}
+		None
 	}
 }
 

@@ -1,6 +1,6 @@
 use wlroots::{
 	Area, CompositorHandle as WLRCompositorHandle, Origin, OutputBuilder as WLROutputBuilder,
-	OutputBuilderResult as WLROutputBuilderResult, OutputHandle as WLROutputHandle, OutputHandler as WLROutputHandler,
+	SurfaceHandle as WLRSurfaceHandle, OutputBuilderResult as WLROutputBuilderResult, OutputHandle as WLROutputHandle, OutputHandler as WLROutputHandler,
 	OutputLayoutHandler as WLROutputLayoutHandler, /* , OutputDestruction as WLROutputDestruction */
 	OutputManagerHandler as WLROutputManagerHandler, Size,
 };
@@ -8,6 +8,7 @@ use wlroots::{
 use common::colors::Color;
 use compositor::workspace::Workspace;
 use compositor::ComfyKernel;
+use compositor::window::Window;
 
 /*
 ..####...##..##..######..#####...##..##..######..#####....####...######...####..
@@ -30,6 +31,37 @@ impl OutputData {
 			workspace: Workspace::new(area),
 			clear_color: Color::burgundy().as_rgba_slice(),
 		}
+	}
+
+	pub fn get_active_window(&self) -> Option<Window> {
+		self.workspace.window_layout.get_active_window()
+	}
+
+	fn get_window_at(&self, x: f64, y: f64) -> Option<Window> {
+		self.workspace.window_layout.find_window_at(x, y)
+	}
+
+	/// Return a tuple for a window which contains a subsurface that intersects with the provided absolute coordinates.
+	/// Checks the active window first, since there is more chances that it intersects.
+	/// This is mainly used to make sure we send pointer event relative to the surface under the pointer.
+	// TODO: Maybe we should separate this into 2 separate functions. One that checks the active window and the other, the get_window_at...
+	pub fn get_window_and_subsurface_at(&self, x: f64, y: f64) -> Option<(Window, WLRSurfaceHandle, f64, f64)> {
+		let mut subsurface_intersection_at = None;
+		if let Some(window) = self.get_active_window() {
+			let (window_x, window_y) = window.convert_output_coord_to_window(x, y);
+			if let Some((surface_handle, sx, sy)) = window.get_subsurface_at(window_x, window_y) {
+				subsurface_intersection_at = Some((window, surface_handle, sx, sy));
+			}
+		}
+		if subsurface_intersection_at.is_none() {
+			if let Some(window) = self.get_window_at(x, y) {
+				let (window_x, window_y) = window.convert_output_coord_to_window(x, y);
+				if let Some((surface_handle, sx, sy)) = window.get_subsurface_at(window_x, window_y) {
+					subsurface_intersection_at = Some((window, surface_handle, sx, sy));
+				}
+			}
+		}
+		subsurface_intersection_at
 	}
 }
 
@@ -121,7 +153,7 @@ impl WLROutputHandler for OutputHandler {
 	/// WIP
 	/// Called every time the output frame is updated.
 	fn on_transform(&mut self, _: WLRCompositorHandle, _: WLROutputHandle) {
-		//println!("on_transform");
+		debug!("on_transform");
 	}
 
 	/// Called every time the output mode changes.
@@ -143,12 +175,12 @@ impl WLROutputHandler for OutputHandler {
 
 	/// Called every time the output is enabled.
 	fn on_enable(&mut self, _: WLRCompositorHandle, _: WLROutputHandle) {
-		//println!("on_enable");
+		println!("on_enable");
 	}
 
 	/// Called every time the output scale changes.
 	fn on_scale_change(&mut self, _: WLRCompositorHandle, _: WLROutputHandle) {
-		//println!("on_scale_change");
+		println!("on_scale_change");
 	}
 
 	/// Called every time the buffers are swapped on an output.
@@ -174,7 +206,6 @@ impl WLROutputHandler for OutputHandler {
 			"Removed OutputData from data_map! Nb of total entries: {}",
 			comfy_kernel.output_data_map.len()
 		);
-		()
 	}
 }
 
@@ -182,45 +213,16 @@ impl WLROutputHandler for OutputHandler {
 pub struct OutputManagerHandler;
 impl WLROutputManagerHandler for OutputManagerHandler {
 	/// Called whenever an output is added.
-	#[wlroots_dehandle(compositor, output, output_layout, cursor)]
+	#[wlroots_dehandle(compositor)]
 	fn output_added<'output>(
 		&mut self,
 		compositor_handle: WLRCompositorHandle,
 		output_builder: WLROutputBuilder<'output>,
 	) -> Option<WLROutputBuilderResult<'output>> {
 		let result = output_builder.build_best_mode(OutputHandler);
-		{
-			let output_handle = &result.output;
-			use compositor_handle as compositor;
-			use output_handle as output;
-
-			let comfy_kernel: &mut ComfyKernel = compositor.data.downcast_mut().unwrap();
-			comfy_kernel.active_output_name = output.name();
-			let xcursor_manager = &mut comfy_kernel.xcursor_manager;
-			// TODO use output config if present instead of auto
-			let output_layout_handle = &mut comfy_kernel.output_layout_handle;
-			let cursor_handle = &mut comfy_kernel.cursor_handle;
-			let output_data_map = &mut comfy_kernel.output_data_map;
-
-			use cursor_handle as cursor;
-			use output_layout_handle as output_layout;
-
-			output_layout.add_auto(output);
-			cursor.attach_output_layout(output_layout);
-			xcursor_manager.load(output.scale());
-			xcursor_manager.set_cursor_image("left_ptr".to_string(), cursor);
-			let (x, y) = cursor.coords();
-			// https://en.wikipedia.org/wiki/Mouse_warping
-			cursor.warp(None, x, y);
-
-			println!("New output detected, named: {}", output.name());
-			let (x, y) = output.layout_space_pos();
-			let (width, height) = output.effective_resolution();
-			output_data_map.insert(
-				output.name(),
-				OutputData::new(Area::new(Origin::new(x, y), Size::new(width, height))),
-			);
-		}
+		use compositor_handle as compositor;
+		let comfy_kernel: &mut ComfyKernel = compositor.data.downcast_mut().unwrap();
+		comfy_kernel.add_output(&result.output, true);
 		Some(result)
 	}
 }
