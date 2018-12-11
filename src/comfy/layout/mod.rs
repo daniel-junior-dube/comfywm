@@ -675,18 +675,18 @@ impl RegionBasedKAryLayoutTree {
 		match direction {
 			LayoutDirection::Up => {
 				area.size.height = 0;
-			},
+			}
 			LayoutDirection::Down => {
 				area.size.height = 0;
 				area.origin.y += active_node_area.size.height;
-			},
+			}
 			LayoutDirection::Left => {
 				area.size.width = 0;
-			},
+			}
 			LayoutDirection::Right => {
 				area.size.width = 0;
 				area.origin.x += active_node_area.size.width;
-			},
+			}
 		};
 		area
 	}

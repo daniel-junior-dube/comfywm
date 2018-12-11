@@ -41,14 +41,17 @@ impl Command {
 			return Err("The command is empty.".to_string());
 		}
 
-		let command_type = CommandType::from_str(splitted_str[0]).unwrap();
+		match CommandType::from_str(splitted_str[0]) {
+			Ok(command_type) => {
+				let args_str = splitted_str
+					.split_off(1)
+					.iter()
+					.map(|elem| String::from(*elem))
+					.collect();
 
-		let args_str = splitted_str
-			.split_off(1)
-			.iter()
-			.map(|elem| String::from(*elem))
-			.collect();
-
-		Ok(Command::new_with_args(command_type, args_str))
+				Ok(Command::new_with_args(command_type, args_str))
+			}
+			Err(e) => Err(format!("{}", e)),
+		}
 	}
 }

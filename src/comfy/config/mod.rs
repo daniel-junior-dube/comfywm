@@ -57,6 +57,17 @@ impl Config {
 			theme,
 		}
 	}
+
+	pub fn reload_config() -> Result<Config, String> {
+		let keybindings = load_user_keybindings()?;
+		let global = load_user_global_config()?;
+		let theme = load_user_theme_config()?;
+		Ok(Config {
+			keybindings,
+			global,
+			theme,
+		})
+	}
 }
 
 fn load_user_theme_config() -> Result<Theme, String> {

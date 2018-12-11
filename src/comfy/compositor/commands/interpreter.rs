@@ -21,6 +21,7 @@ use wlroots::terminate as wlr_terminate;
 use common::command_type::CommandType;
 use compositor::commands::Command as CompositorCommand;
 use compositor::ComfyKernel;
+use config::Config;
 use layout::LayoutDirection;
 
 pub struct CommandInterpreter;
@@ -44,6 +45,7 @@ impl CommandInterpreter {
 			CommandType::MoveActiveWindowLeft => handle_move_active_window_left(command, comfy_kernel),
 			CommandType::MoveActiveWindowRight => handle_move_active_window_right(command, comfy_kernel),
 			CommandType::ToggleActiveWindowFullscreen => handle_toggle_active_window_fullscreen(command, comfy_kernel),
+			CommandType::ReloadConfig => handle_reload_config(command, comfy_kernel),
 			CommandType::Exec => handle_exec(command, comfy_kernel),
 			CommandType::CloseActiveWindow => handle_close_active_window(command, comfy_kernel),
 			CommandType::Terminate => handle_terminate(command, comfy_kernel),
@@ -162,6 +164,32 @@ fn handle_move_active_window_right(_: &CompositorCommand, comfy_kernel: &mut Com
 
 fn handle_toggle_active_window_fullscreen(_: &CompositorCommand, comfy_kernel: &mut ComfyKernel) {
 	comfy_kernel.toggle_active_window_fullscreen();
+}
+
+/*
+.#####...######..##.......####....####...#####..
+.##..##..##......##......##..##..##..##..##..##.
+.#####...####....##......##..##..######..##..##.
+.##..##..##......##......##..##..##..##..##..##.
+.##..##..######..######...####...##..##..#####..
+................................................
+..####....####...##..##..######..######...####..
+.##..##..##..##..###.##..##........##....##.....
+.##......##..##..##.###..####......##....##.###.
+.##..##..##..##..##..##..##........##....##..##.
+..####....####...##..##..##......######...####..
+................................................
+*/
+
+fn handle_reload_config(_: &CompositorCommand, comfy_kernel: &mut ComfyKernel) {
+	match Config::reload_config() {
+		Ok(config) => {
+			comfy_kernel.config = config;
+			comfy_kernel.should_load_wallpaper = true;
+			info!("Sucessfully reloaded the user's config")
+		}
+		Err(e) => error!("Could not reload the user's config, no changes we're applied : {}", e),
+	}
 }
 
 /*
