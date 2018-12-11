@@ -5,9 +5,9 @@ use wlroots::key_events::KeyEvent as WLRKeyEvent;
 use wlroots::pointer_events::AbsoluteMotionEvent;
 use wlroots::{
 	Capability, Compositor as WLRCompositor, CompositorBuilder as WLRCompositorBuilder, Cursor as WLRCursor,
-	CursorHandle as WLRCursorHandle, KeyboardHandle as WLRKeyboardHandle, OutputLayout as WLROutputLayout,
-	OutputLayoutHandle as WLROutputLayoutHandle, Seat as WLRSeat, SeatHandle as WLRSeatHandle,
-	SurfaceHandle as WLRSurfaceHandle, Texture, XCursorManager as WLRXCursorManager,
+	CursorHandle as WLRCursorHandle, GenericRenderer, KeyboardHandle as WLRKeyboardHandle,
+	OutputLayout as WLROutputLayout, OutputLayoutHandle as WLROutputLayoutHandle, Seat as WLRSeat,
+	SeatHandle as WLRSeatHandle, SurfaceHandle as WLRSurfaceHandle, Texture, XCursorManager as WLRXCursorManager,
 	XdgV6ShellState as WLRXdgV6ShellState, XdgV6ShellSurfaceHandle as WLRXdgV6ShellSurfaceHandle,
 };
 
@@ -74,20 +74,6 @@ pub fn generate_default_compositor() -> WLRCompositor {
 		decoration_manager.set_default_mode(ServerDecorationMode::Server);
 	}
 
-	// ? Load wallpaper
-	// TODO: Make a method to dynamically reload a wallpaper (live reload wallpaper)
-	{
-		let mut gles2 = &mut compositor.renderer.as_mut().unwrap();
-		let comfy_kernel: &mut ComfyKernel = (&mut compositor.data).downcast_mut().unwrap();
-		match texture_helper::load_texture(
-			&mut gles2,
-			&Path::new(&comfy_kernel.config.theme.wallpaper_path.clone()),
-		) {
-			Ok(wallpaper_texture) => comfy_kernel.wallpaper_texture = Some(wallpaper_texture),
-			Err(e) => error!("{}", e),
-		}
-	}
-
 	// ? WIP: Initialize and add the seat structures to the kernel
 	{
 		let seat_handle = WLRSeat::create(&mut compositor, "seat0".into(), Box::new(SeatHandler));
@@ -124,6 +110,7 @@ pub struct ComfyKernel {
 	pub currently_pressed_keys: XkbKeySet,
 	pub cursor_direction: LayoutDirection,
 	pub wallpaper_texture: Option<Texture<'static>>,
+	pub should_load_wallpaper: bool,
 }
 
 // TODO: handle main seat features like notifying keyboard/cursor events
@@ -146,6 +133,7 @@ impl ComfyKernel {
 			currently_pressed_keys: XkbKeySet::new(),
 			cursor_direction: LayoutDirection::Right,
 			wallpaper_texture: None,
+			should_load_wallpaper: true,
 		}
 	}
 
@@ -248,6 +236,19 @@ impl ComfyKernel {
 			self.apply_keyboard_focus(&active_shell);
 			self.schedule_frame_for_output(&self.active_output_name);
 		}
+	}
+
+	pub fn load_wallpaper(&mut self, gles2: &mut GenericRenderer) {
+		if let Some(wallpaper_path) = &self.config.theme.wallpaper_path {
+			self.wallpaper_texture = match texture_helper::load_texture(gles2, &Path::new(wallpaper_path)) {
+				Ok(wallpaper_texture) => Some(wallpaper_texture),
+				Err(e) => {
+					error!("{}", e);
+					None
+				}
+			}
+		}
+		self.should_load_wallpaper = false;
 	}
 
 	/// Finds and removes the window bound to the provided shell handle from the containing output.
@@ -426,7 +427,9 @@ impl ComfyKernel {
 
 		for (_, output_data) in self.output_data_map.iter_mut() {
 			window = output_data.workspace.window_layout.find_window_at(x, y);
-			if window.is_some() { break; }
+			if window.is_some() {
+				break;
+			}
 		}
 		window
 	}
