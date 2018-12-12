@@ -38,8 +38,12 @@ install:
 	# Copying the desktop entry to the system
 	cp -f data/comfy.desktop /usr/share/wayland-sessions
 
+	# Copying the manual entry
+	cp -f data/comfywm.1.gz /usr/share/man/man1/
+
 uninstall:
 	rm -f /bin/comfywm
 	rm -rf /etc/comfywm
 	rm -f /usr/share/wayland-sessions/comfy.desktop
 	rm -rf /usr/share/comfywm
+	rm -rf /usr/share/man/man1/comfywm.1.gz
