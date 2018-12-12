@@ -36,6 +36,9 @@ modkey = "Control"
 "$mod+h" = "set_insert_direction_left"
 "$mod+l" = "set_insert_direction_right"
 
+"$mod+Shift+n" = "put_active_window_to_stack"
+"$mod+Shift+m" = "pop_window_from_stack"
+
 "$mod+Shift+f" = "toggle_active_window_fullscreen"
 "$mod+Shift+r" = "reload_config"
 
