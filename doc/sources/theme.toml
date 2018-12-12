@@ -1,0 +1,6 @@
+border_size = 7
+active_color = "#F59311"
+inactive_color = "#29312E"
+
+cursor_indicator_color = "#E6342A"
+wallpaper_path = "/usr/share/comfywm/wallpaper.jpg"
