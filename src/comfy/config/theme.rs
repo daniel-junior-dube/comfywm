@@ -18,7 +18,7 @@ pub struct Theme {
 	pub active_color: RgbaColor,
 	pub inactive_color: RgbaColor,
 	pub cursor_indicator_color: RgbaColor,
-	pub wallpaper_path: String,
+	pub wallpaper_path: Option<String>,
 }
 
 impl Theme {
@@ -28,7 +28,7 @@ impl Theme {
 			active_color: RgbaColor::new(245.0 / 255.0, 147.0 / 255.0, 17.0 / 255.0, 1.0),
 			inactive_color: RgbaColor::new(41.0 / 255.0, 49.0 / 255.0, 46.0 / 255.0, 1.0),
 			cursor_indicator_color: RgbaColor::new(230.0 / 255.0, 52.0 / 255.0, 42.0 / 255.0, 1.0),
-			wallpaper_path: "/usr/share/comfywm/wallpaper.jpg".to_string(),
+			wallpaper_path: Some("/usr/share/comfywm/wallpaper.jpg".to_string()),
 		}
 	}
 
@@ -76,8 +76,8 @@ impl Theme {
 			}
 		}
 
-		if let Some(wallpaper_path) = parsed_content.wallpaper_path {
-			theme.wallpaper_path = wallpaper_path;
+		if parsed_content.wallpaper_path.is_some() {
+			theme.wallpaper_path = parsed_content.wallpaper_path;
 		}
 
 		Ok(theme)

@@ -71,6 +71,9 @@ impl WLROutputHandler for OutputHandler {
 		let mut render_context = renderer.render(output, None);
 
 		// ? Clearing the screen and get indices of windows to render
+		if comfy_kernel.should_load_wallpaper {
+			comfy_kernel.load_wallpaper(renderer);
+		}
 		let wallpaper_option = &comfy_kernel.wallpaper_texture;
 		let active_color = &comfy_kernel.config.theme.active_color.as_slice();
 		let inactive_color = &comfy_kernel.config.theme.inactive_color.as_slice();
@@ -112,7 +115,7 @@ impl WLROutputHandler for OutputHandler {
 					&mut render_context,
 					active_color,
 					Some(&cursor_orentation),
-					Some(cursor_indicator_color)
+					Some(cursor_indicator_color),
 				);
 			});
 		}
