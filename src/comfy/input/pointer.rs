@@ -20,7 +20,6 @@ impl WLRPointerHandler for PointerHandler {
 		_: WLRPointerHandle,
 		event: &AbsoluteMotionEvent,
 	) {
-		debug!("PointerHandler: on_motion_absolute");
 		use compositor_handle as compositor;
 		let comfy_kernel: &mut ComfyKernel = compositor.into();
 
@@ -36,11 +35,8 @@ impl WLRPointerHandler for PointerHandler {
 
 	#[wlroots_dehandle(compositor, cursor)]
 	fn on_motion(&mut self, compositor_handle: WLRCompositorHandle, _: WLRPointerHandle, event: &MotionEvent) {
-		debug!("PointerHandler: on_motion");
 		use compositor_handle as compositor;
 		let comfy_kernel: &mut ComfyKernel = compositor.into();
-		let (cursor_x, cursor_y) = comfy_kernel.get_cursor_coordinates();
-		debug!("PointerHandler: on_motion - (cursor_x, cursor_y): ({}, {})", cursor_x, cursor_y);
 		{
 			let (delta_x, delta_y) = event.delta();
 			let cursor_handle = &comfy_kernel.cursor_handle;
@@ -54,7 +50,6 @@ impl WLRPointerHandler for PointerHandler {
 
 	#[wlroots_dehandle(compositor)]
 	fn on_button(&mut self, compositor_handle: WLRCompositorHandle, _: WLRPointerHandle, button_event: &ButtonEvent) {
-		debug!("PointerHandler: on_button");
 		use compositor_handle as compositor;
 
 		let comfy_kernel: &mut ComfyKernel = compositor.into();

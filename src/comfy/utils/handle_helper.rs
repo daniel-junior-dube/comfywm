@@ -37,14 +37,3 @@ pub mod surface_helper {
 		false
 	}
 }
-
-pub mod output_helper {
-	use wlroots::{Area, Origin, Size, Output as WLROutput};
-
-	/// Returns true if the provided surface is a top level surface.
-	pub fn generate_area(output: &WLROutput) -> Area {
-		let (x, y) = output.layout_space_pos();
-		let (width, height) = output.effective_resolution();
-		Area::new(Origin::new(x, y), Size::new(width, height))
-	}
-}

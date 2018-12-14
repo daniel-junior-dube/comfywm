@@ -202,10 +202,6 @@ impl WLROutputHandler for OutputHandler {
 		let output_name = output.name();
 		info!("Output destroyed, named: {}", output_name);
 		comfy_kernel.output_data_map.remove(&output_name);
-		debug!(
-			"Removed OutputData from data_map! Nb of total entries: {}",
-			comfy_kernel.output_data_map.len()
-		);
 	}
 }
 

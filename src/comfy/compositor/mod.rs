@@ -36,7 +36,6 @@ use input::seat::SeatHandler;
 use input::InputManagerHandler;
 use layout::LayoutDirection;
 use utils::graphics::texture_helper;
-use utils::handle_helper::output_helper;
 
 /*
 ..####....####...##...##..#####....####....####...######..######...####...#####..
@@ -194,7 +193,7 @@ impl ComfyKernel {
 
 		let output_area = self.generate_output_area(output);
 		let output_data_map = &mut self.output_data_map;
-		debug!("New output_area: {:?}", output_area);
+		info!("New output_area: {:?}", output_area);
 		output_data_map.insert(output.name(), OutputData::new(output_area));
 	}
 
@@ -390,22 +389,17 @@ impl ComfyKernel {
 		if let Some((output_name, _output_x, _output_y)) = self.get_output_intersection_at(cursor_x, cursor_y) {
 			if !self.is_active_output(&output_name) {
 				self.active_output_name = output_name.clone();
-				debug!("New active output: {}", self.active_output_name);
 			}
 		}
 	}
 
 	#[wlroots_dehandle(seat, subsurface)]
 	pub fn apply_focus_under_cursor(&mut self) {
-		debug!("apply_focus_under_cursor");
-	        let seat_handle = self.seat_handle.clone().unwrap();
 		self.set_output_under_cursor_as_active();
-		debug!("apply_focus_under_cursor active output: {}", self.active_output_name);
-	        let seat_handle = self.seat_handle.clone().unwrap();
+		let seat_handle = self.seat_handle.clone().unwrap();
 		let mut shell_handle_option = None;
 		self.output_data_map.get(&self.active_output_name).map(|output_data| {
 			let (cursor_x, cursor_y) = self.get_cursor_coordinates();
-			debug!("apply_focus_under_cursor cursor pos: {} {}", cursor_x, cursor_y);
 			if let Some((window, subsurface_handle, surface_x, surface_y)) = output_data.get_window_and_subsurface_at(cursor_x, cursor_y) {
 				use seat_handle as seat;
 				use subsurface_handle as subsurface;
@@ -436,7 +430,7 @@ impl ComfyKernel {
 		if let Some(ref seat_handle) = self.seat_handle.clone() {
 			use seat_handle as seat;
 			let (cursor_x, cursor_y) = self.get_cursor_coordinates();
-			if let Some((output_name, output_x, output_y)) = self.get_output_intersection_at(cursor_x, cursor_y) {
+			if let Some((output_name, _output_x, _output_y)) = self.get_output_intersection_at(cursor_x, cursor_y) {
 				let output_data = self.output_data_map.get(&output_name).unwrap();
 				if let Some((_window, _subsurface_handle, surface_x, surface_y)) = output_data.get_window_and_subsurface_at(cursor_x, cursor_y) {
 					seat.pointer_notify_motion(time, surface_x, surface_y);

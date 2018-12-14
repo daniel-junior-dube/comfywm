@@ -47,7 +47,6 @@ impl CommandInterpreter {
 			CommandType::Exec => handle_exec(command, comfy_kernel),
 			CommandType::CloseActiveWindow => handle_close_active_window(command, comfy_kernel),
 			CommandType::Terminate => handle_terminate(command, comfy_kernel),
-			_ => error!("Command type unknown!"),
 		}
 	}
 }

@@ -14,7 +14,6 @@ use log4rs::append::file::FileAppender;
 use log4rs::config::{Appender, Config, Logger, Root};
 use log4rs::encode::pattern::PatternEncoder;
 
-use wlroots::utils::wlr_log_importance;
 use wlroots::utils::LogCallback;
 use wlroots::utils::LogVerbosity;
 
@@ -46,12 +45,13 @@ fn generate_console_appender() -> ConsoleAppender {
 
 /// Returns a callback mIntercepts and logs all logs from wlroots-rs into our logging
 pub fn generate_wlroots_rs_log_callback() -> LogCallback {
+	use wlroots::utils::wlr_log_importance::*;
 	|level: LogVerbosity, message: String| match level {
-		wlr_log_importance::WLR_SILENT | wlr_log_importance::WLR_DEBUG | wlr_log_importance::WLR_LOG_IMPORTANCE_LAST => {
+		WLR_SILENT | WLR_DEBUG | WLR_LOG_IMPORTANCE_LAST => {
 			debug!("{}", message)
 		}
-		wlr_log_importance::WLR_ERROR => error!("{}", message),
-		wlr_log_importance::WLR_INFO => info!("{}", message),
+		WLR_ERROR => error!("{}", message),
+		WLR_INFO => info!("{}", message),
 	}
 }
 
