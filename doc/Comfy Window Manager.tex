@@ -7,7 +7,7 @@
 \usepackage{float}
 \usepackage{listings}
 
-\title{Comfy: Gestionnaire de fenêtres en tuiles}
+\title{Comfy: Gestionnaire de fenêtres par pavage}
 \author{Daniel-Junior Dubé et Félix Chabot}
 \date{Session d'automne 2018}
 
@@ -25,7 +25,7 @@
 \section{Introduction}
 \par
 \bigskip
-En tant qu'enthousiastes des systèmes d'exploitation GNU/Linux depuis quel-ques années, nous avons pu observer l’engouement de la communauté envers les gestionnaires des fenêtres en tuiles\footnote{https://en.wikipedia.org/w/index.php?title=Tiling\_window\_manager}. En effet, ces gestionnaires permettent une plus grande flexibilité pour la personnalisation de l’expérience utilisateur que les environnements de bureau populaire tel que \textit{Gnome}, \textit{KDE} et \textit{Xfce} tout en étant plus léger sur l’utilisation des ressources matérielles. Tout comme les outils minimalistes tel \textit{Vim} et \textit{Emacs}, ces gestionnaires de fenêtres permettre aussi de bénéficier à l’efficacité des développeurs qui les utilisent grâce aux fonctionnalités adaptées à ceux-ci.
+En tant qu'enthousiastes des systèmes d'exploitation GNU/Linux depuis quel-ques années, nous avons pu observer l’engouement de la communauté envers les gestionnaires de fenêtre en tuiles\footnote{https://en.wikipedia.org/w/index.php?title=Tiling\_window\_manager}. En effet, ces gestionnaires permettent une plus grande flexibilité pour la personnalisation de l’expérience utilisateur que les environnements de bureau populaire tel que \textit{Gnome}, \textit{KDE} et \textit{Xfce} tout en étant plus léger sur l’utilisation des ressources matérielles. Tout comme les outils minimalistes tel \textit{Vim} et \textit{Emacs}, ces gestionnaires de fenêtres permettent aussi de bénéficier à l’efficacité des développeurs qui les utilisent grâce aux nombreux raccourcis clavier.
 
 \par
 \bigskip
@@ -37,36 +37,21 @@ Dans le cadre de ce projet, nous avons donc décidé de concevoir un gestionnair
 
 \par
 \bigskip
-Notre but sera donc de créer un logiciel que des enthousiastes pourront ultimement utiliser dans leur quotidien tout en nous permettant d’apprendre les rudiments de la programmation de composantes systèmes.
+Notre but sera donc de créer un logiciel que des enthousiastes pourront ultimement utiliser dans leur quotidien tout en nous permettant d’apprendre les rudiments de la programmation de composante système.
 
 \section{Revue de littérature}
 \begin{description}
-	\item [Gestionnaire de fenêtre] Un logiciel qui contrôle l’affichage et la
-		disposition des fenêtres des applications en exécution.
-	\item [Écran] Un écran est un espace de rendu qui est mis à notre
-		disposition via un appareil physique (moniteur).
-	\item [Espace de travail] Un écran possède une liste d’espaces de travail.
-		Un seul espace de travail est affiché à l’écran à la fois et l'utilisateur peut déterminer quel espace de travail à afficher.
-	\item [Fenêtre] Une fenêtre est une feuille dans l’arbre de disposition.
-		Elle est donc l’espace réservé à l’affichage du rendu d’une application
-		en exécution.
+	\item [Gestionnaire de fenêtre] Un logiciel qui contrôle l’affichage et la disposition des fenêtres des applications en exécution.
+	\item [Écran] Un écran est un espace de rendu qui est mis à notre disposition via un appareil physique (moniteur).
+	\item [Espace de travail] Un écran possède une liste d’espaces de travail. Un seul espace de travail est affiché à l’écran à la fois et l'utilisateur peut déterminer lequel sera affiché.
+	\item [Fenêtre] Une fenêtre est une feuille dans l’arbre de disposition. Elle est donc l’espace réservé à l’affichage du rendu d’une application en exécution.
 	\item [Gestionnaire de disposition de fenêtres]
-		\begin{sloppypar}
-			Un espace de travail est constitué d’une seule disposition de fenêtres. Celle-ci applique des contraintes d'affichage sur les fenêtres qu'elle contient en ce qui concerne avec la position et la dimension de celles-ci.
-		\end{sloppypar}
+			Un espace de travail est constitué d’une seule disposition de fenêtre. Celle-ci applique des contraintes d'affi-chage sur les fenêtres qu'elle contient en ce qui concerne avec la position et la dimension de celles-ci.
 	\item [Arbre de disposition de fenêtres] Implémentation du gestionnaire de disposition de fenêtres utilisant un arbre enraciné (k-ary tree).
-	\item [Noeud de disposition (dans l’arbre de disposition)] Noeud dans
-		l’arbre de la disposition. Correspond essentiellement à un conteneur de
-		de fenêtres et sous-noeuds.
-	\item [Tuile] Correspond à l’espace (ou subdivision) de l’écran réservé à
-		une fenêtre.
-	\item [Subdivision] Une subdivision représente à la fois un noeud dans
-		l’arbre de disposition et un sous-ensemble de l’espace d’affichage de
-		l’écran.
-	\item [Conteneur de fenêtres] Un conteneur est un noeud dans l’arbre de
-		disposition. Il s’agit donc d’une structure de données qui va contenir
-		un ensemble de fenêtres ou de
-		sous-conteneurs.
+	\item [Noeud de disposition (dans l’arbre de disposition)] Noeud dans l’arbre de la disposition. Correspond essentiellement à un conteneur de fenêtres et sous-noeuds.
+	\item [Tuile] Correspond à l’espace (ou subdivision) de l’écran réservé à une  fenêtre.
+	\item [Subdivision] Une subdivision représente à la fois un noeud dans l’arbre de disposition et un sous-ensemble de l’espace d’affichage de l’écran.
+	\item [Conteneur de fenêtres] Un conteneur est un noeud dans l’arbre de disposition. Il s’agit donc d’une structure de données qui va contenir un ensemble de fenêtres ou de sous-conteneurs.
 	\item [Liaison de touche (Keybinding)] Représente l'association d'une combinaison de touches à une commande de l'application.
 	\item [Commande] Fonctionnalité du gestionnaire de fenêtre accessible à l'utilisateur via une combinaison de touche.
 	\item [Pointeur] Un appareil physique servant à envoyer des évènements de mouvement au compositeur. Très souvent il s'agit d'une souris, mais pourrait être un écran tactile.
@@ -76,17 +61,17 @@ Notre but sera donc de créer un logiciel que des enthousiastes pourront ultimem
 \end{description}
 
 \section{Installation}
-Afin d'installer \textit{Comfy}, la première étape est de s'assurer que l'utilisateur poss-ède toutes les dépendances de \textit{Wlroots}\footnote{https://github.com/swaywm/wlroots}. Ensuite, il faut tout simplement utiliser le fichier \textit{Makefile} de la façon suivante :
+Afin d'installer \textit{Comfy}, la première étape est de s'assurer que l'utilisateur poss-ède toutes les dépendances de \textit{wlroots}\footnote{https://github.com/swaywm/wlroots}. Ensuite, il faut tout simplement utiliser le fichier \textit{Makefile} de la façon suivante :
 \begin{verbatim}
 	$ make
 	$ sudo make install
 \end{verbatim}
 
 \par
-Celui-ci s'occupera de compiler et de copier les différents fichiers aux bons emplacements systèmes. Les indications d'installation les plus récentes sont situées dans le fichier \textit{README}.
+Celui-ci s'occupera de compiler et copier les différents fichiers aux bons emplacements systèmes. Les indications d'installation les plus récentes sont situées dans le fichier \textit{README.md}.
 
 \section{Manuel d'utilisateur}
-Comme tout application \textit{UNIX} qui se respecte, \textit{Comfy} possède un manuel d'utilisateur accessible à l'aide la commande \textit{man}.
+Comme toute application \textit{UNIX} qui se respecte, \textit{Comfy} possède un manuel d'utilisateur accessible à l'aide la commande \textit{man}.
 
 \begin{verbatim}
 	$ man confywm
@@ -103,16 +88,16 @@ Comme tout application \textit{UNIX} qui se respecte, \textit{Comfy} possède un
 	\includegraphics[width=\textwidth]{diagramme_du_fonctionnement_arbre.png}
 	\caption{Arbre résultant}
 \end{figure}
+
 \section{Composantes}
 \subsection{Configuration}
-
 \par
 \bigskip
-Afin de donner une meilleure expérience aux utiliseurs de \textit{Comfy}, nous avons décidé de laisser la possibilité de pouvoir personaliser un grand nombre de fonctionnalités à même l'application. Le format des fichiers de configuration utilisera le format \textit{TOML}\footnote{https://github.com/toml-lang/toml}. Ce format est d'ailleurs utilisé pour les fichiers de configuration du langage \textit{Rust}. \textit{TOML} est très similaire au format \textit{YAML} et \textit{JSON} pour la représentation des différents types de données et de la simplicité d'écriture. Par contre, \textit{TOML} porte une plus grande importance à la lisibilité ce qui est un point cruciale pour un fichier de configuration. De plus, il est possible de rajouter des commentaires aux fichiers d'exemple ce qui va nous permettre de bien expliquer les configurations possibles aux utilisateurs. Pour l'instant nous avons les fichiers de configurations suivants:
+Afin de donner une meilleure expérience aux utiliseurs de \textit{Comfy}, nous avons décidé de laisser la possibilité de pouvoir personaliser un grand nombre de fonctionnalités à même l'application. Le format des fichiers de configuration utilisera \textit{TOML}\footnote{https://github.com/toml-lang/toml}. Ce format est d'ailleurs utilisé pour les fichiers de configuration du langage \textit{Rust}. \textit{TOML} est très similaire au \textit{YAML} et \textit{JSON} pour la représentation des différents types de données et de la simplicité d'écriture. Par contre, \textit{TOML} porte une plus grande importance à la lisibilité ce qui est un point cruciale pour un fichier de configuration. De plus, il est possible de rajouter des commentaires aux fichiers d'exemple ce qui va nous permettre de bien expliquer les configurations possibles aux utilisateurs. Pour l'instant nous avons les fichiers de configurations suivants:
 \begin{itemize}
 	\item Un fichier pour les options globales de l'application \textbf{global.toml}
 	\item Un fichier pour les raccourcis clavier appelé \textbf{keybings.toml}
-	\item Un fichier pour l'apparence de comfy appelé \textbf{theme.toml}
+	\item Un fichier pour l'apparence de \textit{Comfy} appelé \textbf{theme.toml}
 \end{itemize}
 
 \subsubsection{global.toml}
@@ -137,16 +122,15 @@ Ce fichier représente les attributs personnalisables associés au comportement 
 Un paramètre important de ce fichier de configuration est \textit{modkey} qui va servir à définir une sorte de macro utilisable tout au long du fichier. Pour faire référence au \textit{modkey} il faut seulement entrer \textit{\$mod} à l'intérieur d'une chaîne de combinaison de touche et \textit{Comfy} s'occupera de remplacer cette référence à la touche associée précédement. L'utilité du \textit{modkey} est de dédier de façon simple une touche centrale de contrôle pour les commandes de \textit{Comfy}. Une touche parfaite pour le \textit{modkey} serait une touche modificatrice\footnote{https://fr.wikipedia.org/wiki/Touche\_de\_combinaison} comme les touches \textbf{Control}, \textbf{Super} et \textbf{Alt} car celles-ci ne devraient pas avoir un impact sur le fonctionnement des applications sous-jacentes.
 \par
 \bigskip
-Ensuite, nous avons la section \textbf{keybindings}. Cette section sera la partie la plus importante du fichier car c'est elle qui comprend la définition des associations des combinaisons de touches aux commandes. Une entrée de cette section est relativement simple. Le membre gauche de l'association est un ensemble de touches sous la forme d'une chaîne de caractère (entre guillemets) utilisant le caractère séparateur '+'. Malheureusement, la clé en \textit{TOML} (qui est le membre gauche en question) ne peut pas contenir ce symboles, c'est pourquoi nous utilisons la représentation en chaîne de caractère. Ensuite, le membre droit contient deux parties, une commande suivie de ses arguments. Par exemple, à la ligne 4 du fichier d'exemple, nous avons:
+Ensuite, nous avons la section \textbf{keybindings}. Cette section sera la partie la plus importante du fichier, car c'est elle qui comprend la définition des associations des combinaisons de touches aux commandes. Une entrée de cette section est relativement simple. Le membre gauche de l'association est un ensemble de touches sous la forme d'une chaîne de caractère (entre guillemets) utilisant le caractère séparateur '+'. Malheureusement, la clé en \textit{TOML} (qui est le membre gauche en question) ne peut pas contenir ce symbole, c'est pourquoi nous utilisons la représentation en chaîne de caractère. Ensuite, le membre droit contient deux parties, une commande suivie de ses arguments. Par exemple, à la ligne 4 du fichier d'exemple, nous avons:
 
 \lstinputlisting[frame=none,numbers=none,firstline=4,lastline=4]{keybindings.toml}
 
-La commande serait donc \textbf{exec} et l'argument serait
-\textbf{weston-terminal}.
+La commande serait donc \textbf{exec} et l'argument serait \textbf{weston-terminal}.
 
 \par
 \bigskip
-Une chose importante à savoir est que \textit{Comfy} gère les entrées clavier et vérifie si une combinaison de touches se trouve dans le fichier de configuration et l'exécute. Ceci serait problématique le même raccourci serait aussi associé dans une application. Par exemple, associer une commande à la combinaison \textbf{Control+s} ne serait pas une bonne idée puisque celle-ci sera toujours interceptée par \textit{Comfy} avant même de se rendre à l'application.
+Une chose importante à savoir est que \textit{Comfy} gère les entrées clavier et vérifie si une combinaison de touches se trouve dans le fichier de configuration et l'exécute. Ceci serait problématique si le même raccourci serait aussi associé dans une application. Par exemple, associer une commande à la combinaison \textbf{Control+s} (un raccourci populaire pour enregistrer un fichier) ne serait pas une bonne idée puisque celle-ci sera toujours interceptée par \textit{Comfy} avant même de se rendre à l'application.
 
 \subsubsection{theme.toml}
 \begin{minipage}{\linewidth}
@@ -173,15 +157,15 @@ Ce fichier représente les attributs visuels personnalisables de l'application. 
 \section{Organisation du code source}
 Le projet étant d'une taille considérable, nous avons essayé de le subdiviser le plus possible en sous-section. Voici les majeurs répertoires :
 \begin{description}
-	\item [config] Répertoire contenant les fichiers de configuration par défaut. Ces fichiers vont être copiés lors de l'installation afin de devenir les configuration par défaut du système.
-	\item [data] Répertoire contenant d'autres fichiers nécessaire pour l'installation sys-tème. Par exemple, il y a un \textit{Desktop Entry} servant à lancer l'application à partir d'un \textit{Display Manager}.
+	\item [config] Répertoire contenant les fichiers de configuration par défaut. Ces fichiers vont être copiés lors de l'installation afin de devenir les configuration du système.
+	\item [data] Répertoire contenant d'autres fichiers nécessaires pour l'installation sys-tème. Par exemple, il y a un \textit{Desktop Entry} servant à lancer l'application à partir d'un \textit{X Display Manager}.
 	\item [doc] Répertoire contenant ce rapport.
-	\item [lib] Répertoire contenant la librairie \textit{wlroots-rs} sous-forme de sous-module \textit{git}.
+	\item [lib] Répertoire contenant la librairie \textit{wlroots-rs} sous-forme d'un sous-module \textit{git}.
 	\item [src] Répertoire contenant le code source de \textit{Comfy}. Nous allons entrer plus en détails sur ce répertoire dans la section suivante.
 	\item [target] Répertoire contenant le code compilé de \textit{Comfy}.
 \end{description}
 
-Mis-à-part ces dossiers, il y a quelques fichiers important se trouvant dans la racine du projet :
+Mis-à-part ces dossiers, il y a quelques fichiers importants se trouvant dans la racine du projet :
 \begin{description}
 	\item [Cargo.toml] Le fichier de configuration du projet \textit{Rust}, il contient notamment les dépendances du code source.
 	\item [Makefile] Le fichier servant à compiler et installer l'application sur le système.
@@ -189,8 +173,8 @@ Mis-à-part ces dossiers, il y a quelques fichiers important se trouvant dans la
 \subsection{Description du répertoire "src"}
 \begin{description}
 	\item [comfy] Le répertoire principale du code source. Tous ses sous-répertoires re-présentent des modules de \textit{Comfy}. Par exemple, le sous-répertoire \textit{input} contient les implémentations du clavier et de la souris. Se mode de fonctionnement est largement dicté par \textit{Rust}.
-	\item [common] Une repertoire contenant des éléments partagés pouvant être utilisé dans d'autres projet externe (des scripts utilisateurs par exemple).
-	\item [lib.rs] Un fichiers \textit{Rust} servant à partager les fichiers contenus dans \textit{common}.
+	\item [common] Un repertoire contenant des éléments partagés pouvant être utilisé pour des projets externes (des scripts utilisateurs par exemple).
+	\item [lib.rs] Un fichier \textit{Rust} servant à partager les fichiers contenus dans \textit{common}.
 \end{description}
 \section{Conclusion}
 
