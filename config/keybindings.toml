@@ -42,6 +42,6 @@ modkey = "Control"
 "$mod+Shift+f" = "toggle_active_window_fullscreen"
 "$mod+Shift+r" = "reload_config"
 
-"$mod+Return" = "exec xfce4-terminal"
+"$mod+Return" = "exec weston-terminal"
 "$mod+q" = "close_active_window"
 "$mod+Escape" = "terminate"
