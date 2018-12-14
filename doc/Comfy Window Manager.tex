@@ -147,7 +147,6 @@ Ce fichier représente les attributs visuels personnalisables de l'application. 
 	\item [wallpaper\_path] Chemin vers le fichier de l'image qui sera utilisée comme fond d'écran.
 \end{description}
 
-\section{Architecture}
 \section{Tests}
 Étant donné la nature du projet, une application graphique de bas niveau, plusieurs composantes sont difficilement testable à l'aide de tests d'intégration. En effet, nous avons d'avantage utilisé des tests fonctionnelles pour s'assurer du bon fonctionnement d'un module. Il existe toutefois une exception avec le module de configuration. Dans ce module, nous avons intégré des tests unitaires pour nous assurer que nos fonctions génèrent les bonnes configurations. Un avantage d'utiliser \textit{Rust} est que les tests unitaires sont supportés nativement. Pour exécuter la suite de test, il suffit d'entrer cette commande :
 \begin{verbatim}
@@ -176,11 +175,10 @@ Mis-à-part ces dossiers, il y a quelques fichiers importants se trouvant dans l
 	\item [common] Un repertoire contenant des éléments partagés pouvant être utilisé pour des projets externes (des scripts utilisateurs par exemple).
 	\item [lib.rs] Un fichier \textit{Rust} servant à partager les fichiers contenus dans \textit{common}.
 \end{description}
-\section{Conclusion}
 
 \section{Analyse/Conception}
 \par
-Comme la phase de recherche et d'analyse à occupé le tier du temps alloué au développement du projet, nous avons réalisé un quantité concidérable de schémas et de documents de recherche. Ceux-ci nous ont permis de partager efficacement notre vision des éléments de conceptions.
+Comme la phase de recherche et d'analyse a occupé le tier du temps alloué au développement du projet, nous avons réalisé une quantité considérable de schémas et de documents de recherche. Ceux-ci nous ont permis de partager efficacement notre vision des éléments de conception.
 \bigskip
 
 \par
@@ -194,7 +192,7 @@ En premier lieu, nous avons notre prototype de diagramme de classes initial:
 \end{figure}
 
 \par
-Grâce à ce diagramme, nous pouvons observer la répartition des responsabilités à travers les différentes composantes du système. Par exemple, nous observons à gauche les classes qui gère les évènements des entrées, qui sont associé à la racine du compositeur.
+Grâce à ce diagramme, nous pouvons observer la répartition des responsabilités à travers les différentes composantes du système. Par exemple, nous observons à gauche les classes qui gèrent les évènements des entrées, qui sont associés à la racine du compositeur.
 \bigskip
 
 \par
@@ -204,7 +202,7 @@ Les autres schémas concernant la conception de l'application se retrouvent dans
 \section{Architecture}
 \subsection{Architecture générale}
 \par
-Afin de comprendre le fonctionnement de notre application au plus niveau possible, voici le schéma d'architecture générale:
+Afin de comprendre le fonctionnement de notre application au plus haut niveau possible, voici le schéma d'architecture générale:
 \bigskip
 
 \begin{figure}[H]
@@ -214,12 +212,12 @@ Afin de comprendre le fonctionnement de notre application au plus niveau possibl
 \end{figure}
 
 \par
-Dans cette image, nous observons qu'il y a quatres formes en vert. Celles-ci représentent les composantes fesant partie de l'implémentation de Comfy. Par contre, les éléments grisatres représentent les éléments qui ont été abandonnés au fil du projet.
+Dans cette image, nous observons qu'il y a quatres formes en vert. Celles-ci représentent les composantes faisant partie de l'implémentation de Comfy. Par contre, les éléments grisâtres représentant les éléments qui ont été abandonnés au fil du projet.
 \bigskip
 
 \subsubsection{Composante de base}
 \par
-Le prochain schéma représente la fondation de l'implémentation de notre compositeur avec la sous-struture de base, le ComfyKernel.
+Le prochain schéma représente la fondation de l'implémentation de notre compositeur avec la sous-struture de base, le \textbf{ComfyKernel}.
 \bigskip
 
 \begin{figure}[H]
@@ -229,12 +227,12 @@ Le prochain schéma représente la fondation de l'implémentation de notre compo
 \end{figure}
 
 \par
-Pour l'instant, le ComfyKernel possède beaucoup trop de responsabilités, dont la réécriture sera l'un des premiers objectifs de la continuation du projet. Par contre, comme la structure du compositeur est accessible à partir de chaque gestionnaire d'évènement, l'implémentation actuelle nous permet d'accéder facilement aux différentes données partagées.
+Pour l'instant, le \textit{ComfyKernel} possède beaucoup trop de responsabilités, dont la réécriture sera l'un des premiers objectifs de la continuation du projet. Par contre, comme la structure du compositeur est accessible à partir de chaque gestionnaire d'évènement, l'implémentation actuelle nous permet d'accéder facilement aux différentes données partagées.
 \bigskip
 
 \subsubsection{Intération utilisateur}
 \par
-Le concept illustré ci-dessous représente un part assez complexe du comportement de notre compositeur, la gestion de l'intération de l'utilisateur avec l'application.
+Le concept illustré ci-dessous représente un part assez complexe du comportement de notre compositeur, la gestion de l'intération de l'utilisateur avec l'appli-cation.
 \bigskip
 
 \begin{figure}[H]
@@ -244,7 +242,7 @@ Le concept illustré ci-dessous représente un part assez complexe du comporteme
 \end{figure}
 
 \par
-Grâce à l'implémentation de wlroots, nous avons directement accès aux méthodes de support des évènements émis par libinput, la bibliothèque système qui gère les données reçu par les appareils d'entrées (clavier, souris, pavé tactile, etc).
+Grâce à l'implémentation de \textit{wlroots}, nous avons directement accès aux méthodes de support des évènements émis par \textit{libinput}, la bibliothèque système qui gère les données reçues par les appareils d'entrées (clavier, souris, pavé tactile, etc).
 \bigskip
 
 \subsubsection{Sorties et espaces de travail virtuels}
@@ -264,7 +262,7 @@ Lorsqu'une application sous-jacentes est exécutée et qu'une surface d'affichag
 \bigskip
 
 \par
-Notre implémentation se base sur une structure nommé "Arbre enraciné" qui, afin de respecté efficacement les restrictions de partage de référence de Rust, est basé sur un entreposage de noeud par région (appelé "region-based" ou "arena-based"). L'aire de chaque noeud est calculé via l'aire du parent et du ratio de son poid par rapport à ses voisins. L'orientation de chaque noeud est controllé par son conteneur, c'est-à-dire, le noeud parent. Seul les feuilles sont associés à des fenêtres d'application.
+Notre implémentation se base sur une structure nommée "Arbre enraciné" qui, afin de respecter efficacement les restrictions de partage de référence de \textit{Rust}, est basé sur un entreposage de noeud par région (appelé "region-based" ou "arena-based"). L'aire de chaque noeud est calculé via l'aire du parent et du ratio de son poid par rapport à ses voisins. L'orientation de chaque noeud est controllé par son conteneur, c'est-à-dire, le noeud parent. Seul les feuilles sont associées à des fenêtres d'application.
 \bigskip
 
 Voici un schéma illustrant le fonctionnement:
