@@ -178,4 +178,102 @@ Mis-à-part ces dossiers, il y a quelques fichiers importants se trouvant dans l
 \end{description}
 \section{Conclusion}
 
+\section{Analyse/Conception}
+\par
+Comme la phase de recherche et d'analyse à occupé le tier du temps alloué au développement du projet, nous avons réalisé un quantité concidérable de schémas et de documents de recherche. Ceux-ci nous ont permis de partager efficacement notre vision des éléments de conceptions.
+\bigskip
+
+\par
+En premier lieu, nous avons notre prototype de diagramme de classes initial:
+\bigskip
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\textwidth]{Diagramme_de_classes.jpg}
+	\caption{Prototype du diagramme de classes}
+\end{figure}
+
+\par
+Grâce à ce diagramme, nous pouvons observer la répartition des responsabilités à travers les différentes composantes du système. Par exemple, nous observons à gauche les classes qui gère les évènements des entrées, qui sont associé à la racine du compositeur.
+\bigskip
+
+\par
+Les autres schémas concernant la conception de l'application se retrouvent dans la section suivante "Architecture", car même si ceux-ci ont fait parti de la phase d'analyse et conception, ils ont évolués tout au long du projet pour correspondre ultimement à l'état actuel de notre architecture.
+\bigskip
+
+\section{Architecture}
+\subsection{Architecture générale}
+\par
+Afin de comprendre le fonctionnement de notre application au plus niveau possible, voici le schéma d'architecture générale:
+\bigskip
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\textwidth]{architecture_generale_v1.jpg}
+	\caption{Architecture générale}
+\end{figure}
+
+\par
+Dans cette image, nous observons qu'il y a quatres formes en vert. Celles-ci représentent les composantes fesant partie de l'implémentation de Comfy. Par contre, les éléments grisatres représentent les éléments qui ont été abandonnés au fil du projet.
+\bigskip
+
+\subsubsection{Composante de base}
+\par
+Le prochain schéma représente la fondation de l'implémentation de notre compositeur avec la sous-struture de base, le ComfyKernel.
+\bigskip
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\textwidth]{architecture_base.jpg}
+	\caption{Composante de base}
+\end{figure}
+
+\par
+Pour l'instant, le ComfyKernel possède beaucoup trop de responsabilités, dont la réécriture sera l'un des premiers objectifs de la continuation du projet. Par contre, comme la structure du compositeur est accessible à partir de chaque gestionnaire d'évènement, l'implémentation actuelle nous permet d'accéder facilement aux différentes données partagées.
+\bigskip
+
+\subsubsection{Intération utilisateur}
+\par
+Le concept illustré ci-dessous représente un part assez complexe du comportement de notre compositeur, la gestion de l'intération de l'utilisateur avec l'application.
+\bigskip
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\textwidth]{interaction_utilisateur.jpg}
+	\caption{Intération utilisateur}
+\end{figure}
+
+\par
+Grâce à l'implémentation de wlroots, nous avons directement accès aux méthodes de support des évènements émis par libinput, la bibliothèque système qui gère les données reçu par les appareils d'entrées (clavier, souris, pavé tactile, etc).
+\bigskip
+
+\subsubsection{Sorties et espaces de travail virtuels}
+\par
+Lors de la réception d'un évènement de création d'un appareil d'affichage (dans notre cas, l'écran ou la sortie), nous ajoutons une entrée dans la structure associant le nom de l'écran et ses données. Cette entrée possède les données de l'espace de travail actuel de l'écran qui pour sa part, contient le gestionnaire de disposition des fenêtres.
+\bigskip
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\textwidth]{sorties_et_espaces_de_travail.jpg}
+	\caption{Sorties et espaces de travail}
+\end{figure}
+
+\subsubsection{Disposition des fenêtres}
+\par
+Lorsqu'une application sous-jacentes est exécutée et qu'une surface d'affichage est fournie, la coquille associée à celle-ci est envoyé dans le gestionnaire de disposition actif (celui contenu dans l'écran avec lequel nous intéragissons). Le gestionnaire en question se chargera d'appliquer les contraintes d'affichage. Ensuite, lorsqu'un évènement de rendu sera perçu pour l'écran en question, le gestionnaire de disposition sera prêt à fournir les "poignées" vers les fenêtres à afficher.
+\bigskip
+
+\par
+Notre implémentation se base sur une structure nommé "Arbre enraciné" qui, afin de respecté efficacement les restrictions de partage de référence de Rust, est basé sur un entreposage de noeud par région (appelé "region-based" ou "arena-based"). L'aire de chaque noeud est calculé via l'aire du parent et du ratio de son poid par rapport à ses voisins. L'orientation de chaque noeud est controllé par son conteneur, c'est-à-dire, le noeud parent. Seul les feuilles sont associés à des fenêtres d'application.
+\bigskip
+
+Voici un schéma illustrant le fonctionnement:
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=\textwidth]{arbre_de_disposition.jpg}
+	\caption{Arbre de disposition}
+\end{figure}
+
+
 \end{document}
