@@ -26,7 +26,7 @@ impl WLRXdgV6ShellHandler for XdgV6ShellHandler {
 
 		if shell_handle_helper::is_top_level(&shell_handle) {
 			let comfy_kernel: &mut ComfyKernel = compositor.into();
-			comfy_kernel.find_and_remove_window(shell_handle);
+			comfy_kernel.find_and_remove_window(&shell_handle);
 		}
 	}
 }

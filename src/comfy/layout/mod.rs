@@ -600,10 +600,10 @@ impl Layout {
 				self.rebalance();
 			}
 			self.layout_tree.print_to_console();
+			Ok(())
 		} else {
 			return Err("Tried to remove a window which is not contained in the layout.".to_string());
 		}
-		Ok(())
 	}
 
 	/// Finds the node index associated with the shell_handle and sets it as the last activated node
