@@ -111,6 +111,7 @@ pub struct ComfyKernel {
 	pub cursor_direction: LayoutDirection,
 	pub wallpaper_texture: Option<Texture<'static>>,
 	pub should_load_wallpaper: bool,
+	pub window_stack: Vec<WLRXdgV6ShellSurfaceHandle>,
 }
 
 // TODO: handle main seat features like notifying keyboard/cursor events
@@ -134,6 +135,7 @@ impl ComfyKernel {
 			cursor_direction: LayoutDirection::Right,
 			wallpaper_texture: None,
 			should_load_wallpaper: true,
+			window_stack: Vec::new(),
 		}
 	}
 
@@ -252,7 +254,12 @@ impl ComfyKernel {
 	}
 
 	/// Finds and removes the window bound to the provided shell handle from the containing output.
-	pub fn find_and_remove_window(&mut self, shell_handle: WLRXdgV6ShellSurfaceHandle) {
+	pub fn find_and_remove_window(&mut self, shell_handle: &WLRXdgV6ShellSurfaceHandle) -> bool {
+		if let Some(index_of_shell_handle) = self.window_stack.iter().position(|shell_handle_from_stack| *shell_handle_from_stack == *shell_handle) {
+			self.window_stack.remove(index_of_shell_handle);
+			return true;
+		}
+
 		let mut fallback_shell_handle_option = None;
 		let mut name_of_container_output = None;
 		for (output_name, output_data) in self.output_data_map.iter_mut() {
@@ -277,7 +284,10 @@ impl ComfyKernel {
 			self.apply_keyboard_focus(&fallback_shell_handle);
 		}
 		if let Some(output_name) = name_of_container_output {
-			self.schedule_frame_for_output(&output_name)
+			self.schedule_frame_for_output(&output_name);
+			true
+		} else {
+			false
 		}
 	}
 
@@ -422,9 +432,31 @@ impl ComfyKernel {
 		}
 	}
 
+	/// Takes the active window and put itto the window stack
+	pub fn put_active_window_to_stack(&mut self) {
+		if let Some(active_window) = self.get_active_window() {
+			let shell_handle = active_window.shell_handle;
+			if self.find_and_remove_window(&shell_handle) {
+				self.window_stack.push(shell_handle);
+				info!("Pushed a window to the stack");
+			}
+		} else {
+			info!("No active window found");
+		}
+	}
+
+	/// Takes a window from the stack if any and inserts it in the active output
+	pub fn pop_window_from_stack(&mut self) {
+		if let Some(shell_handle) = self.window_stack.pop() {
+			self.add_window_to_active_workspace(shell_handle);
+			info!("Poped window from the stack");
+		} else {
+			info!("No window to pop from the stack");
+		}
+	}
+
 	fn get_window_at(&mut self, x: f64, y: f64) -> Option<Window> {
 		let mut window = None;
-
 		for (_, output_data) in self.output_data_map.iter_mut() {
 			window = output_data.workspace.window_layout.find_window_at(x, y);
 			if window.is_some() {

@@ -44,6 +44,8 @@ impl CommandInterpreter {
 			CommandType::MoveActiveWindowDown => handle_move_active_window_down(command, comfy_kernel),
 			CommandType::MoveActiveWindowLeft => handle_move_active_window_left(command, comfy_kernel),
 			CommandType::MoveActiveWindowRight => handle_move_active_window_right(command, comfy_kernel),
+			CommandType::PutActiveWindowToStack => handle_put_active_window_to_stack(command, comfy_kernel),
+			CommandType::PopWindowFromStack => handle_pop_window_from_stack(command, comfy_kernel),
 			CommandType::ToggleActiveWindowFullscreen => handle_toggle_active_window_fullscreen(command, comfy_kernel),
 			CommandType::ReloadConfig => handle_reload_config(command, comfy_kernel),
 			CommandType::Exec => handle_exec(command, comfy_kernel),
@@ -145,6 +147,30 @@ fn handle_move_active_window_left(_: &CompositorCommand, comfy_kernel: &mut Comf
 
 fn handle_move_active_window_right(_: &CompositorCommand, comfy_kernel: &mut ComfyKernel) {
 	comfy_kernel.move_active_window(LayoutDirection::Right);
+}
+
+
+/*
+.##...##..######..##..##..#####....####...##...##.
+.##...##....##....###.##..##..##..##..##..##...##.
+.##.#.##....##....##.###..##..##..##..##..##.#.##.
+.#######....##....##..##..##..##..##..##..#######.
+..##.##...######..##..##..#####....####....##.##..
+..................................................
+..####...######...####....####...##..##.
+.##........##....##..##..##..##..##.##..
+..####.....##....######..##......####...
+.....##....##....##..##..##..##..##.##..
+..####.....##....##..##...####...##..##.
+........................................
+*/
+
+fn handle_put_active_window_to_stack(_: &CompositorCommand, comfy_kernel: &mut ComfyKernel) {
+	comfy_kernel.put_active_window_to_stack();
+}
+
+fn handle_pop_window_from_stack(_: &CompositorCommand, comfy_kernel: &mut ComfyKernel) {
+	comfy_kernel.pop_window_from_stack();
 }
 
 /*
